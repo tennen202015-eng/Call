@@ -753,7 +753,14 @@ body:not(.video-call) #audioView{display:-webkit-box;display:flex}
     if (k === 'image') return '<a href="' + (direct || s) + '" target="_blank"><img src="' + s + '" data-alt="' + direct + '" alt="📷" onerror="bcImgErr(this)"></a>';
     if (k === 'video') return '<video src="' + s + '" controls playsinline preload="metadata"></video>';
     if (k === 'audio') return '<audio src="' + s + '" controls style="max-width:240px"></audio>';
-    return '<a href="' + s + '" target="_blank" download="' + esc(a.name || 'file') + '">📎 ' + esc(a.name || 'ملف') + '</a> <span class="t" style="display:inline">' + fmtSize(a.size) + '</span>';
+    var nm = esc(a.name || 'ملف'), sz = ' <span class="t" style="display:inline">' + fmtSize(a.size) + '</span>';
+    var isIOS = /iP(ad|hone|od)/.test(navigator.userAgent);
+    if (isIOS) {
+      // Safari القديم ما بيفتحش ملفات blob في تاب جديد، فنستخدم الرابط المباشر وهو يعرضها بالمعاينة
+      if (direct) return '<a href="' + direct + '" target="_blank">📎 ' + nm + '</a>' + sz;
+      return '<a href="' + s + '">📎 ' + nm + '</a>' + sz;
+    }
+    return '<a href="' + s + '" target="_blank" download="' + esc(a.name || 'file') + '">📎 ' + nm + '</a>' + sz;
   }
 
   // لو الصورة ما اتعرضتش: نجرب الرابط المباشر، ولو فشل نعرض زر لفتحها
