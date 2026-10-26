@@ -49,6 +49,27 @@ body:not(.video-call) #audioView{display:-webkit-box;display:flex}
 #toast{position:fixed;left:16px;right:16px;bottom:120px;z-index:20;background:#111827;border:1px solid var(--line);color:#fff;padding:14px;border-radius:12px;text-align:center;font-size:16px;display:none}
 #err{position:fixed;left:8px;right:8px;bottom:4px;z-index:30;color:#fca5a5;font-size:12px;direction:ltr;text-align:left;white-space:pre-wrap}
 .tip{font-size:14px;color:var(--muted);background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;margin-top:22px;max-width:440px;text-align:right;line-height:1.8}
+.badge{display:inline-block;background:var(--red);color:#fff;border-radius:999px;font-size:14px;padding:1px 9px;margin-right:8px;vertical-align:middle}
+.mini-row{display:-webkit-box;display:flex;justify-content:center;width:100%;max-width:440px}
+.mini-row .btn{margin:14px 4px 0;font-size:14px;padding:10px 6px}
+/* chat */
+#chat{padding:0;justify-content:flex-start;align-items:stretch;height:100%;text-align:right}
+.chat-head{display:-webkit-box;display:flex;align-items:center;padding:12px 16px;background:var(--card);border-bottom:1px solid var(--line)}
+.chat-head h2{-webkit-box-flex:1;flex:1;margin:0 12px;font-size:18px}
+.chat-head button{background:none;border:0;color:var(--blue);font-size:17px;padding:6px 0;font-family:inherit}
+.chat-head .ico{font-size:24px;margin-right:14px}
+#msgs{-webkit-box-flex:1;flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:12px 16px}
+.mrow{margin:6px 0}
+.mrow.me{text-align:left}
+.mrow.them{text-align:right}
+.msg{display:inline-block;max-width:80%;padding:9px 13px;border-radius:16px;line-height:1.5;font-size:17px;word-wrap:break-word;white-space:pre-wrap;text-align:right}
+.mrow.me .msg{background:var(--blue);border-bottom-left-radius:4px}
+.mrow.them .msg{background:var(--card);border:1px solid var(--line);border-bottom-right-radius:4px}
+.msg .t{display:block;font-size:11px;color:rgba(255,255,255,.65);margin-top:3px}
+.chat-input{display:-webkit-box;display:flex;align-items:flex-end;padding:10px;background:var(--card);border-top:1px solid var(--line)}
+.chat-input textarea{-webkit-box-flex:1;flex:1;font-size:17px;padding:10px 12px;border-radius:14px;border:1px solid var(--line);background:#0b1222;color:var(--text);font-family:inherit;resize:none;height:46px;max-height:120px}
+.chat-input button{border:0;border-radius:14px;background:var(--blue);color:#fff;font-size:16px;font-weight:600;padding:12px 18px;margin-right:8px;font-family:inherit}
+.chat-note{font-size:12px;color:var(--muted);text-align:center;padding:6px 16px 0}
 </style>
 </head>
 <body>
@@ -84,6 +105,13 @@ body:not(.video-call) #audioView{display:-webkit-box;display:flex}
   <div class="status"><span class="dot" id="dot"></span><span id="statusText">جارٍ الاتصال بالخادم...</span></div>
   <button class="btn green" id="audioCallBtn">📞 مكالمة صوتية</button>
   <button class="btn" id="videoCallBtn">🎥 مكالمة فيديو</button>
+  <button class="btn" id="chatBtn" style="background:#6366f1">💬 الرسائل<span class="badge" id="unread" style="display:none"></span></button>
+  <div class="mini-row">
+    <button class="btn ghost" id="ringBtn">🔔 اختيار رنة</button>
+    <button class="btn ghost" id="ringTest">▶ تجربة الرنة</button>
+    <button class="btn ghost" id="ringReset" style="display:none">↺ الرنة الأصلية</button>
+  </div>
+  <input type="file" id="ringFile" accept="audio/*" style="display:none">
   <div class="tip" id="homeTip" style="display:none">
     اترك هذه الصفحة مفتوحة والـ iPad على الشاحن حتى تصلك المكالمات.<br>
     فعّل: الإعدادات ← الشاشة والسطوع ← القفل التلقائي ← أبدًا.<br>
@@ -94,6 +122,21 @@ body:not(.video-call) #audioView{display:-webkit-box;display:flex}
     <b id="topicName" style="direction:ltr;display:inline-block;font-size:17px;color:#fff;-webkit-user-select:all;user-select:all"></b>
   </div>
   <button class="btn ghost" id="resetBtn2">تغيير الإعدادات</button>
+</section>
+
+<!-- الرسائل -->
+<section id="chat" class="screen">
+  <div class="chat-head">
+    <button id="chatBack">→ رجوع</button>
+    <h2 id="chatTitle"></h2>
+    <button class="ico" id="chatAudio">📞</button>
+    <button class="ico" id="chatVideo">🎥</button>
+  </div>
+  <div id="msgs"></div>
+  <div class="chat-input">
+    <textarea id="chatText" placeholder="اكتب رسالة..."></textarea>
+    <button id="sendBtn">إرسال</button>
+  </div>
 </section>
 
 <!-- مكالمة واردة -->
@@ -132,6 +175,7 @@ body:not(.video-call) #audioView{display:-webkit-box;display:flex}
 
 <audio id="ringAudio" loop preload="auto"></audio>
 <audio id="backAudio" loop preload="auto"></audio>
+<audio id="msgAudio" preload="auto"></audio>
 
 <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
 <script>
@@ -192,11 +236,13 @@ body:not(.video-call) #audioView{display:-webkit-box;display:flex}
     ws(36, 'data'); v.setUint32(40, total * 2, true);
     var o = 44;
     for (i = 0; i < segs.length; i++) {
-      var f1 = segs[i][0], dur = segs[i][1], f2 = segs[i][2] || 0, n = Math.floor(dur * rate);
+      var f1 = segs[i][0], dur = segs[i][1], f2 = segs[i][2] || 0, am = segs[i][3] || 0, n = Math.floor(dur * rate);
       for (var j = 0; j < n; j++) {
         var s = 0;
         if (f1) {
           var env = Math.min(1, j / 300, (n - j) / 300);
+          // "ترعيش" زي جرس التليفون الكلاسيكي
+          if (am) env *= (Math.sin(2 * Math.PI * am * j / rate) > 0 ? 1 : 0.12);
           s = (Math.sin(2 * Math.PI * f1 * j / rate) * 0.5 + (f2 ? Math.sin(2 * Math.PI * f2 * j / rate) * 0.3 : 0)) * env;
         }
         v.setInt16(o, Math.max(-1, Math.min(1, s)) * 26000, true); o += 2;
@@ -204,12 +250,22 @@ body:not(.video-call) #audioView{display:-webkit-box;display:flex}
     }
     return URL.createObjectURL(new Blob([buf], {type: 'audio/wav'}));
   }
-  $('ringAudio').src = makeWav([[0, 0.3], [880, 0.4, 1320], [0, 0.15], [880, 0.4, 1320], [0, 1.4]]);
+  var DEFAULT_RING = makeWav([[0, 0.3], [1100, 0.45, 1500, 22], [0, 0.2], [1100, 0.45, 1500, 22], [0, 1.7]]);
   $('backAudio').src = makeWav([[0, 0.3], [425, 1.0], [0, 2.5]]);
+  $('msgAudio').src = makeWav([[0, 0.05], [1200, 0.1], [0, 0.04], [1600, 0.16], [0, 0.1]]);
+
+  // رنة مخصصة يختارها المستخدم من ملفاته (تتحفظ على الجهاز)
+  var RING_KEY = 'bayt-ringtone';
+  function applyRing() {
+    var c = null; try { c = localStorage.getItem(RING_KEY); } catch (e) {}
+    $('ringAudio').src = c || DEFAULT_RING;
+    $('ringReset').style.display = c ? 'block' : 'none';
+  }
+  applyRing();
 
   // iOS يسمح بتشغيل الصوت لاحقًا فقط لو اشتغل مرة بعد ضغطة من المستخدم
   function unlockAudio() {
-    ['ringAudio', 'backAudio'].forEach(function (id) {
+    ['ringAudio', 'backAudio', 'msgAudio'].forEach(function (id) {
       var a = $(id);
       try {
         var p = a.play();
@@ -505,6 +561,137 @@ body:not(.video-call) #audioView{display:-webkit-box;display:flex}
     $('camBtn').className = camOn ? 'cbtn' : 'cbtn off';
   }
 
+  // ===== الشات (عن طريق ntfy: الرسالة توصل حتى لو الطرف التاني مقفول، وتتحفظ 12 ساعة على الخادم) =====
+  var CHAT_KEY = 'bayt-chat', READ_KEY = 'bayt-chat-read';
+  var chatMsgs = [], chatIds = {}, lastRead = 0, es = null, chatStarted = false;
+
+  // قناة كل جهاز: الموبايل = نفس قناة تنبيه المكالمات، والـ iPad قناة منفصلة
+  function topicFor(role) { return role === 'phone' ? 'baytcall-' + cfg.code : 'baytcall-' + cfg.code + '-home'; }
+  function baseUrl() { return location.href.split('#')[0].split('?')[0]; }
+  function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+  function fmtTime(t) {
+    var d = new Date(t * 1000), now = new Date();
+    var hh = d.getHours(), mm = d.getMinutes(), ap = hh < 12 ? 'ص' : 'م';
+    hh = hh % 12; if (hh === 0) hh = 12;
+    var s = hh + ':' + (mm < 10 ? '0' : '') + mm + ' ' + ap;
+    if (d.toDateString() !== now.toDateString()) s = d.getDate() + '/' + (d.getMonth() + 1) + ' ' + s;
+    return s;
+  }
+
+  function loadChat() {
+    try { chatMsgs = JSON.parse(localStorage.getItem(CHAT_KEY) || '[]'); } catch (e) { chatMsgs = []; }
+    try { lastRead = parseInt(localStorage.getItem(READ_KEY) || '0', 10) || 0; } catch (e) { lastRead = 0; }
+    chatIds = {};
+    chatMsgs = chatMsgs.filter(function (m) { return m && m.id && !m.pending && !m.failed; });
+    chatMsgs.forEach(function (m) { chatIds[m.id] = true; });
+  }
+  function saveChat() {
+    if (chatMsgs.length > 500) chatMsgs = chatMsgs.slice(chatMsgs.length - 500);
+    try { localStorage.setItem(CHAT_KEY, JSON.stringify(chatMsgs)); } catch (e) {}
+  }
+  function chatOpen() { return $('chat').classList.contains('active'); }
+
+  function addMsg(m, live) {
+    if (chatIds[m.id]) return;
+    chatIds[m.id] = true; chatMsgs.push(m);
+    chatMsgs.sort(function (a, b) { return a.time - b.time; });
+    saveChat();
+    if (m.from !== cfg.role && live) {
+      if (chatOpen() && document.visibilityState === 'visible') markRead();
+      else {
+        if (!inCall && !pendingCall) { try { var a = $('msgAudio'); a.currentTime = 0; var p = a.play(); if (p && p.catch) p.catch(function () {}); } catch (e) {} }
+        if (navigator.vibrate) navigator.vibrate(200);
+        if (!chatOpen()) toast('💬 رسالة من ' + roleLabel(m.from) + ': ' + m.text.slice(0, 60));
+      }
+    }
+    if (chatOpen()) renderChat();
+    updateUnread();
+  }
+
+  function updateUnread() {
+    var n = 0;
+    chatMsgs.forEach(function (m) { if (m.from !== cfg.role && m.time > lastRead) n++; });
+    var b = $('unread');
+    if (n > 0) { b.textContent = n; b.style.display = 'inline-block'; } else b.style.display = 'none';
+  }
+  function markRead() {
+    var t = 0; chatMsgs.forEach(function (m) { if (m.time > t) t = m.time; });
+    lastRead = Math.max(lastRead, t);
+    try { localStorage.setItem(READ_KEY, String(lastRead)); } catch (e) {}
+    updateUnread();
+  }
+
+  function renderChat() {
+    var box = $('msgs'), html = '';
+    chatMsgs.forEach(function (m) {
+      var me = m.from === cfg.role;
+      html += '<div class="mrow ' + (me ? 'me' : 'them') + '"><div class="msg">' + esc(m.text) +
+        '<span class="t">' + fmtTime(m.time) + (m.pending ? ' ⏳' : '') + (m.failed ? ' ⚠️ لم تُرسل' : '') + '</span></div></div>';
+    });
+    if (!chatMsgs.length) html = '<p style="text-align:center;margin:40px auto">لا توجد رسائل بعد. اكتب أول رسالة 👋</p>';
+    html += '<div class="chat-note">الرسائل محفوظة على هذا الجهاز</div>';
+    box.innerHTML = html;
+    box.scrollTop = box.scrollHeight;
+  }
+
+  // أحداث ntfy: ناخد بس الرسائل اللي عليها علامة chat (مش تنبيهات المكالمات)
+  function handleEvent(e, fromRole, live) {
+    if (!e || e.event !== 'message' || !e.tags || e.tags.indexOf('chat') < 0) return;
+    addMsg({id: e.id, time: e.time, from: fromRole, text: e.message || ''}, live);
+  }
+
+  function syncTopic(role) {
+    return fetch(NTFY_SERVER + '/' + topicFor(role) + '/json?poll=1&since=12h').then(function (r) { return r.text(); }).then(function (t) {
+      t.split('\n').forEach(function (line) {
+        if (!line) return;
+        try { handleEvent(JSON.parse(line), role === 'phone' ? 'home' : 'phone', false); } catch (x) {}
+      });
+    }).catch(function () {});
+  }
+  function syncAll() { syncTopic('phone'); syncTopic('home'); }
+
+  function startChat() {
+    if (chatStarted) return; chatStarted = true;
+    loadChat(); updateUnread(); syncAll();
+    if (window.EventSource) {
+      try {
+        es = new EventSource(NTFY_SERVER + '/' + topicFor(cfg.role) + '/sse');
+        es.onmessage = function (ev) { try { handleEvent(JSON.parse(ev.data), otherRole(), true); } catch (x) {} };
+        es.onerror = function () {}; // المتصفح بيعيد الاتصال لوحده
+      } catch (e) {}
+    }
+    setInterval(syncAll, 60000); // احتياطي لو الاتصال المباشر وقع
+    document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible') syncAll(); });
+  }
+
+  function openChat() {
+    $('chatTitle').textContent = roleLabel(otherRole());
+    show('chat'); renderChat(); markRead(); syncAll();
+  }
+
+  function sendChat() {
+    var ta = $('chatText'), txt = (ta.value || '').replace(/^\s+|\s+$/g, '');
+    if (!txt) return;
+    if (txt.length > 2000) txt = txt.slice(0, 2000);
+    ta.value = '';
+    var body = {topic: topicFor(otherRole()), message: txt, tags: ['chat', 'speech_balloon'], priority: 4};
+    if (otherRole() === 'phone') { body.title = 'رسالة من البيت 💬'; body.click = baseUrl() + '?chat=1'; }
+    var tmp = {id: 'tmp' + Date.now(), time: Math.floor(Date.now() / 1000), from: cfg.role, text: txt, pending: true};
+    chatIds[tmp.id] = true; chatMsgs.push(tmp); renderChat();
+    fetch(NTFY_SERVER + '/', {method: 'POST', body: JSON.stringify(body)}).then(function (r) {
+      if (!r.ok) throw new Error('http ' + r.status);
+      return r.json();
+    }).then(function (j) {
+      tmp.pending = false; delete chatIds[tmp.id];
+      if (j && j.id) { tmp.id = j.id; tmp.time = j.time || tmp.time; }
+      chatIds[tmp.id] = true; saveChat(); if (chatOpen()) renderChat();
+    }).catch(function () {
+      tmp.pending = false; tmp.failed = true; if (chatOpen()) renderChat();
+      toast('الرسالة لم تُرسل. تأكد من الإنترنت وجرّب تاني.');
+      if (!ta.value) ta.value = txt;
+    });
+  }
+
   // ===== التشغيل =====
   function begin() {
     var code = cfg.code;
@@ -517,6 +704,7 @@ body:not(.video-call) #audioView{display:-webkit-box;display:flex}
     $('phoneTip').style.display = cfg.role === 'phone' ? 'block' : 'none';
     $('topicName').textContent = 'baytcall-' + code;
     show('idle');
+    startChat();
     var prob = supportProblem();
     if (prob) { setStatus(false, prob); if (typeof Peer === 'undefined') return; }
     startPeer();
@@ -544,6 +732,40 @@ body:not(.video-call) #audioView{display:-webkit-box;display:flex}
   $('hangBtn').onclick = hangUp;
   $('micBtn').onclick = toggleMic;
   $('camBtn').onclick = toggleCam;
+  $('chatBtn').onclick = openChat;
+  $('chatBack').onclick = function () { show('idle'); };
+  $('chatAudio').onclick = function () { makeCall('audio'); };
+  $('chatVideo').onclick = function () { makeCall('video'); };
+  $('sendBtn').onclick = sendChat;
+  $('chatText').addEventListener('keydown', function (e) {
+    // على الكمبيوتر: Enter يبعت، Shift+Enter سطر جديد
+    if (e.keyCode === 13 && !e.shiftKey && !('ontouchstart' in window)) { e.preventDefault(); sendChat(); }
+  });
+
+  $('ringBtn').onclick = function () { $('ringFile').click(); };
+  $('ringFile').onchange = function () {
+    var f = this.files && this.files[0]; this.value = '';
+    if (!f) return;
+    if (f.size > 2000000) { toast('الملف كبير. اختر رنة أصغر من 2 ميجا'); return; }
+    var r = new FileReader();
+    r.onload = function () {
+      var ok = true;
+      try { localStorage.setItem(RING_KEY, r.result); } catch (e) { ok = false; }
+      $('ringAudio').src = r.result;
+      $('ringReset').style.display = 'block';
+      toast(ok ? 'تم حفظ الرنة ✓ اضغط "تجربة الرنة"' : 'الرنة هتشتغل لحد ما تقفل الصفحة بس (المساحة لا تكفي)');
+    };
+    r.readAsDataURL(f);
+  };
+  $('ringTest').onclick = function () {
+    playSound('ringAudio');
+    setTimeout(function () { if (!pendingCall) stopSounds(); }, 4000);
+  };
+  $('ringReset').onclick = function () {
+    try { localStorage.removeItem(RING_KEY); } catch (e) {}
+    applyRing(); toast('رجعت الرنة الأصلية');
+  };
+
   $('tapAudio').onclick = function () {
     var p = $('remoteVideo').play(); if (p && p.catch) p.catch(function () {});
     $('tapAudio').style.display = 'none';
@@ -553,6 +775,9 @@ body:not(.video-call) #audioView{display:-webkit-box;display:flex}
   if (cfg && cfg.code && cfg.role && /[?&]auto=1/.test(location.search)) {
     // اتفتح من تنبيه المكالمة: ندخل على طول عشان المكالمة توصل
     begin();
+  } else if (cfg && cfg.code && cfg.role && /[?&]chat=1/.test(location.search)) {
+    // اتفتح من تنبيه رسالة: نفتح الشات على طول
+    begin(); openChat();
   } else if (cfg && cfg.code && cfg.role) {
     $('startInfo').textContent = 'هذا الجهاز: ' + roleLabel(cfg.role) + ' — اضغط ابدأ للتشغيل';
     show('start');
