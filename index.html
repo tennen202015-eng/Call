@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <title>مكالمات البيت</title>
 <style>
-:root{--bg:#0f172a;--card:#1e293b;--line:#334155;--text:#f1f5f9;--muted:#94a3b8;--green:#22c55e;--red:#ef4444;--blue:#3b82f6;}
+:root{--bg:#0f172a;--card:#1e293b;--line:#334155;--text:#f1f5f9;--muted:#94a3b8;--green:#22c55e;--red:#ef4444;--blue:#3b82f6;--seen:#7dd3fc;}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font-family:-apple-system,"Segoe UI",Tahoma,Arial,sans-serif;overflow-x:hidden}
 .screen{display:none;min-height:100%;padding:28px 16px;-webkit-box-orient:vertical;flex-direction:column;align-items:center;justify-content:center;text-align:center}
@@ -14,7 +14,8 @@ h1{font-size:26px;margin:0 0 8px}
 p{color:var(--muted);line-height:1.7;margin:6px 0;max-width:460px}
 .card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:20px;width:100%;max-width:440px;margin-top:16px;text-align:right}
 label{display:block;font-size:15px;margin:12px 0 6px}
-input[type=text]{width:100%;font-size:18px;padding:12px;border-radius:12px;border:1px solid var(--line);background:#0b1222;color:var(--text);direction:ltr;text-align:left}
+input[type=text]{width:100%;font-size:18px;padding:12px;border-radius:12px;border:1px solid var(--line);background:#0b1222;color:var(--text)}
+#codeInput{direction:ltr;text-align:left}
 .role{display:block;padding:14px;border:1px solid var(--line);border-radius:12px;margin-top:10px;font-size:16px}
 .role input{margin-left:8px}
 .btn{display:block;width:100%;max-width:440px;border:0;border-radius:14px;padding:16px;font-size:19px;font-weight:600;color:#fff;background:var(--blue);margin-top:14px;font-family:inherit}
@@ -30,6 +31,18 @@ input[type=text]{width:100%;font-size:18px;padding:12px;border-radius:12px;borde
 @keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.12)}}
 .row{display:-webkit-box;display:flex;justify-content:center;width:100%;max-width:440px}
 .row .btn{margin:14px 6px 0}
+.badge{display:inline-block;background:var(--red);color:#fff;border-radius:999px;font-size:14px;padding:1px 9px;margin-right:8px;vertical-align:middle;font-weight:600}
+.mini-row{display:-webkit-box;display:flex;justify-content:center;width:100%;max-width:440px}
+.mini-row .btn{margin:14px 4px 0;font-size:14px;padding:10px 6px}
+.tip{font-size:14px;color:var(--muted);background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;margin-top:22px;max-width:440px;text-align:right;line-height:1.8}
+/* family list (iPad) */
+#people{width:100%;max-width:440px;margin-top:10px}
+.person{display:-webkit-box;display:flex;align-items:center;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:12px 14px;margin-top:10px;text-align:right}
+.person .nm{-webkit-box-flex:1;flex:1;font-size:19px;font-weight:600}
+.person button{border:0;border-radius:50%;width:50px;height:50px;font-size:22px;margin-right:8px;color:#fff;background:var(--blue);position:relative}
+.person button.g{background:var(--green)}
+.person button.c{background:#6366f1}
+.person .badge{position:absolute;top:-6px;left:-6px;margin:0;font-size:12px}
 /* in-call */
 #incall{padding:0;justify-content:flex-start;background:#000}
 #remoteVideo{position:fixed;top:0;left:0;width:100%;height:100%;object-fit:cover;background:#000}
@@ -46,12 +59,6 @@ body:not(.video-call) #audioView{display:-webkit-box;display:flex}
 .cbtn.off{background:#fff;color:#111}
 .cbtn.end{background:var(--red)}
 #tapAudio{display:none;position:fixed;top:45%;left:16px;right:16px;z-index:6}
-#toast{position:fixed;left:16px;right:16px;bottom:120px;z-index:20;background:#111827;border:1px solid var(--line);color:#fff;padding:14px;border-radius:12px;text-align:center;font-size:16px;display:none}
-#err{position:fixed;left:8px;right:8px;bottom:4px;z-index:30;color:#fca5a5;font-size:12px;direction:ltr;text-align:left;white-space:pre-wrap}
-.tip{font-size:14px;color:var(--muted);background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;margin-top:22px;max-width:440px;text-align:right;line-height:1.8}
-.badge{display:inline-block;background:var(--red);color:#fff;border-radius:999px;font-size:14px;padding:1px 9px;margin-right:8px;vertical-align:middle}
-.mini-row{display:-webkit-box;display:flex;justify-content:center;width:100%;max-width:440px}
-.mini-row .btn{margin:14px 4px 0;font-size:14px;padding:10px 6px}
 /* chat */
 #chat{padding:0;justify-content:flex-start;align-items:stretch;height:100%;text-align:right}
 .chat-head{display:-webkit-box;display:flex;align-items:center;padding:12px 16px;background:var(--card);border-bottom:1px solid var(--line)}
@@ -66,15 +73,24 @@ body:not(.video-call) #audioView{display:-webkit-box;display:flex}
 .mrow.me .msg{background:var(--blue);border-bottom-left-radius:4px}
 .mrow.them .msg{background:var(--card);border:1px solid var(--line);border-bottom-right-radius:4px}
 .msg .t{display:block;font-size:11px;color:rgba(255,255,255,.65);margin-top:3px}
-.chat-input{display:-webkit-box;display:flex;align-items:flex-end;padding:10px;background:var(--card);border-top:1px solid var(--line)}
-.chat-input textarea{-webkit-box-flex:1;flex:1;font-size:17px;padding:10px 12px;border-radius:14px;border:1px solid var(--line);background:#0b1222;color:var(--text);font-family:inherit;resize:none;height:46px;max-height:120px}
-.chat-input button{border:0;border-radius:14px;background:var(--blue);color:#fff;font-size:16px;font-weight:600;padding:12px 18px;margin-right:8px;font-family:inherit}
+.msg .tick{font-size:12px;margin-right:4px;letter-spacing:-3px}
+.msg .tick.seen{color:var(--seen);font-weight:700}
 .msg img{display:block;width:240px;max-width:100%;height:auto;min-height:60px;background:#0b1222;border-radius:10px;margin-bottom:4px}
 .msg video{display:block;width:260px;max-width:100%;max-height:320px;border-radius:10px;background:#000;margin-bottom:4px}
 .msg a{color:#fff;text-decoration:underline}
 .msg .gone{color:var(--muted);font-size:14px}
+.chat-input{display:-webkit-box;display:flex;align-items:flex-end;padding:10px;background:var(--card);border-top:1px solid var(--line)}
+.chat-input textarea{-webkit-box-flex:1;flex:1;font-size:17px;padding:10px 12px;border-radius:14px;border:1px solid var(--line);background:#0b1222;color:var(--text);font-family:inherit;resize:none;height:46px;max-height:120px}
+.chat-input #sendBtn{border:0;border-radius:14px;background:var(--blue);color:#fff;font-size:16px;font-weight:600;padding:12px 18px;margin-right:8px;font-family:inherit}
 #attBtn{background:none;border:0;font-size:26px;padding:6px 4px;margin-left:6px}
 .chat-note{font-size:12px;color:var(--muted);text-align:center;padding:6px 16px 0}
+/* action sheet */
+#sheet{display:none;position:fixed;top:0;left:0;right:0;bottom:0;z-index:40;background:rgba(0,0,0,.55)}
+#sheetBox{position:absolute;left:12px;right:12px;bottom:16px;max-width:440px;margin:0 auto;background:var(--card);border:1px solid var(--line);border-radius:18px;padding:10px}
+#sheetTitle{color:var(--muted);font-size:14px;text-align:center;padding:8px}
+#sheetBox .btn{margin-top:8px;font-size:17px;padding:14px;max-width:none}
+#toast{position:fixed;left:16px;right:16px;bottom:120px;z-index:50;background:#111827;border:1px solid var(--line);color:#fff;padding:14px;border-radius:12px;text-align:center;font-size:16px;display:none}
+#err{position:fixed;left:8px;right:8px;bottom:4px;z-index:60;color:#fca5a5;font-size:12px;direction:ltr;text-align:left;white-space:pre-wrap}
 </style>
 </head>
 <body>
@@ -83,13 +99,17 @@ body:not(.video-call) #audioView{display:-webkit-box;display:flex}
 <section id="setup" class="screen">
   <div class="big-ico">📞</div>
   <h1>مكالمات البيت</h1>
-  <p>اختر رمزًا خاصًا بعائلتكم، واكتبه نفسه على الجهازين.</p>
+  <p>كل العيلة تكتب نفس رمز العيلة. الـ iPad يختار "البيت"، وكل واحد تاني يختار "موبايل" ويكتب اسمه.</p>
   <div class="card">
-    <label for="codeInput">رمز العائلة (حروف إنجليزية وأرقام، 6 على الأقل)</label>
+    <label for="codeInput">رمز العيلة (حروف إنجليزية وأرقام، 6 على الأقل)</label>
     <input type="text" id="codeInput" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="مثال: ahmed2026home">
     <label>هذا الجهاز هو:</label>
-    <label class="role"><input type="radio" name="role" value="home"> الـ iPad (في البيت)</label>
-    <label class="role"><input type="radio" name="role" value="phone"> موبايلي</label>
+    <label class="role"><input type="radio" name="role" value="home"> الـ iPad (البيت)</label>
+    <label class="role"><input type="radio" name="role" value="phone"> موبايل فرد من العيلة</label>
+    <div id="nameWrap" style="display:none">
+      <label for="nameInput">اسمك (هيظهر على الـ iPad)</label>
+      <input type="text" id="nameInput" maxlength="30" placeholder="مثال: أحمد">
+    </div>
   </div>
   <button class="btn" id="saveBtn">حفظ وبدء</button>
 </section>
@@ -103,24 +123,33 @@ body:not(.video-call) #audioView{display:-webkit-box;display:flex}
   <button class="btn ghost" id="resetBtn1">تغيير الإعدادات</button>
 </section>
 
-<!-- الانتظار -->
+<!-- الشاشة الرئيسية -->
 <section id="idle" class="screen">
-  <div class="big-ico">🏠</div>
+  <div class="big-ico" id="meIco">🏠</div>
   <h1 id="meLabel"></h1>
   <div class="status"><span class="dot" id="dot"></span><span id="statusText">جارٍ الاتصال بالخادم...</span></div>
-  <button class="btn green" id="audioCallBtn">📞 مكالمة صوتية</button>
-  <button class="btn" id="videoCallBtn">🎥 مكالمة فيديو</button>
-  <button class="btn" id="chatBtn" style="background:#6366f1">💬 الرسائل<span class="badge" id="unread" style="display:none"></span></button>
+
+  <!-- للـ iPad: قائمة العيلة -->
+  <div id="people" style="display:none"></div>
+
+  <!-- للموبايل: الاتصال بالبيت -->
+  <div id="memberBtns" style="display:none;width:100%;max-width:440px">
+    <button class="btn green" id="audioCallBtn">📞 اتصال صوتي بالبيت</button>
+    <button class="btn" id="videoCallBtn">🎥 اتصال فيديو بالبيت</button>
+    <button class="btn" id="chatBtn" style="background:#6366f1">💬 الرسائل<span class="badge" id="unread" style="display:none"></span></button>
+  </div>
+
   <div class="mini-row">
     <button class="btn ghost" id="ringBtn">🔔 اختيار رنة</button>
     <button class="btn ghost" id="ringTest">▶ تجربة الرنة</button>
     <button class="btn ghost" id="ringReset" style="display:none">↺ الرنة الأصلية</button>
   </div>
   <input type="file" id="ringFile" accept="audio/*" style="display:none">
+
   <div class="tip" id="homeTip" style="display:none">
-    اترك هذه الصفحة مفتوحة والـ iPad على الشاحن حتى تصلك المكالمات.<br>
+    اترك هذه الصفحة مفتوحة والـ iPad على الشاحن حتى تصلك المكالمات والرسائل.<br>
     فعّل: الإعدادات ← الشاشة والسطوع ← القفل التلقائي ← أبدًا.<br>
-    وتأكد أن صوت الجهاز مرتفع.
+    لإضافة حد للقائمة: يفتح الرابط على موبايله، يكتب نفس رمز العيلة واسمه.
   </div>
   <div class="tip" id="phoneTip" style="display:none">
     عشان موبايلك يرن حتى والصفحة مقفولة: ثبّت تطبيق <b>ntfy</b> من Google Play، اضغط <b>+</b> واشترك في الاسم ده بالظبط:<br>
@@ -136,6 +165,7 @@ body:not(.video-call) #audioView{display:-webkit-box;display:flex}
     <h2 id="chatTitle"></h2>
     <button class="ico" id="chatAudio">📞</button>
     <button class="ico" id="chatVideo">🎥</button>
+    <button class="ico" id="chatMenu">🗑</button>
   </div>
   <div id="msgs"></div>
   <div class="chat-input">
@@ -150,7 +180,7 @@ body:not(.video-call) #audioView{display:-webkit-box;display:flex}
 <section id="incoming" class="screen">
   <div class="big-ico pulse" id="inIco">📞</div>
   <h1 id="inTitle">مكالمة واردة</h1>
-  <p id="inFrom"></p>
+  <p id="inFrom" style="font-size:22px;color:#fff"></p>
   <div class="row">
     <button class="btn red" id="rejectBtn">رفض</button>
     <button class="btn green" id="answerBtn">رد</button>
@@ -162,7 +192,7 @@ body:not(.video-call) #audioView{display:-webkit-box;display:flex}
   <video id="remoteVideo" autoplay playsinline></video>
   <video id="localVideo" autoplay playsinline muted></video>
   <div id="audioView">
-    <div class="big-ico" id="audioIco">📞</div>
+    <div class="big-ico">📞</div>
     <h1 id="audioName"></h1>
   </div>
   <div id="callInfo">
@@ -177,6 +207,7 @@ body:not(.video-call) #audioView{display:-webkit-box;display:flex}
   </div>
 </section>
 
+<div id="sheet"><div id="sheetBox"><div id="sheetTitle"></div><div id="sheetBtns"></div></div></div>
 <div id="toast"></div>
 <div id="err"></div>
 
@@ -188,50 +219,63 @@ body:not(.video-call) #audioView{display:-webkit-box;display:flex}
 <script>
 (function () {
   // ===== إعدادات الشبكة =====
-  // خوادم STUN مجانية. لو المكالمة "تتصل ولا يظهر صوت/صورة" أضف خادم TURN هنا.
-  // مثال (من حساب مجاني على metered.ca):
+  // لو المكالمة "تتصل ولا يظهر صوت/صورة" أضف خادم TURN هنا (مثلاً من حساب مجاني على metered.ca):
   // {urls: 'turn:global.relay.metered.ca:80', username: 'USER', credential: 'PASS'},
-  // {urls: 'turn:global.relay.metered.ca:443?transport=tcp', username: 'USER', credential: 'PASS'}
   var ICE_SERVERS = [
     {urls: 'stun:stun.l.google.com:19302'},
     {urls: 'stun:stun1.l.google.com:19302'}
   ];
-
-  // خادم التنبيهات المجاني (تطبيق ntfy على أندرويد)
-  var NTFY_SERVER = 'https://ntfy.sh';
-  var notified = false, retryT = null;
-
-  var LS_KEY = 'bayt-call-config';
-  var cfg = null, peer = null, peerOpen = false, myId = '', otherId = '';
-  var mediaCall = null, dataConn = null, pendingCall = null, localStream = null;
-  var callType = 'audio', inCall = false, connected = false, isCaller = false;
-  var timerInt = null, callStart = 0, outgoingTimeout = null, incomingTimeout = null;
-  var micOn = true, camOn = true, toastT = null, vibInt = null;
+  // خادم التنبيهات والرسائل المجاني (ntfy)
+  var NTFY = 'https://ntfy.sh';
+  var MAX_FILE = 15 * 1024 * 1024;
 
   function $(id) { return document.getElementById(id); }
+  window.onerror = function (msg, src, line) { $('err').textContent = 'Error: ' + msg + ' (' + line + ')'; };
 
-  // عرض الأخطاء على الشاشة (مفيد لأن Safari القديم ما فيه Console سهل)
-  window.onerror = function (msg, src, line) {
-    $('err').textContent = 'Error: ' + msg + ' (' + line + ')';
-  };
+  function lsGet(k, def) { try { var s = localStorage.getItem(k); return s ? JSON.parse(s) : def; } catch (e) { return def; } }
+  function lsSet(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch (e) { return false; } }
 
-  function loadCfg() { try { var s = localStorage.getItem(LS_KEY); return s ? JSON.parse(s) : null; } catch (e) { return null; } }
-  function saveCfg(c) { try { localStorage.setItem(LS_KEY, JSON.stringify(c)); } catch (e) {} }
-  function clearCfg() { try { localStorage.removeItem(LS_KEY); } catch (e) {} }
+  var cfg = null, ME = '';
+  var members = {};          // للـ iPad: كل أفراد العيلة {mid: {name}}
 
   function show(id) {
     var s = document.querySelectorAll('.screen');
     for (var i = 0; i < s.length; i++) s[i].classList.remove('active');
     $(id).classList.add('active');
   }
+  var toastT = null;
   function toast(msg) {
     var t = $('toast'); t.textContent = msg; t.style.display = 'block';
     clearTimeout(toastT); toastT = setTimeout(function () { t.style.display = 'none'; }, 4000);
   }
-  function roleLabel(r) { return r === 'home' ? 'الـ iPad (البيت)' : 'الموبايل'; }
-  function otherRole() { return cfg.role === 'home' ? 'phone' : 'home'; }
+  function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+  function nowSec() { return Math.floor(Date.now() / 1000); }
+  function baseUrl() { return location.href.split('#')[0].split('?')[0]; }
+  function randId() { var s = ''; var c = 'abcdefghijkmnpqrstuvwxyz23456789'; for (var i = 0; i < 8; i++) s += c.charAt(Math.floor(Math.random() * c.length)); return s; }
 
-  // ===== أصوات الرنين (ملفات WAV تتولد هنا، وتشتغل حتى لو زر الصامت شغال غالبًا) =====
+  // ===== الهويات والقنوات =====
+  function isHome() { return cfg.role === 'home'; }
+  function base() { return 'baytcall-' + cfg.code; }
+  // "main" = الموبايل اللي اتسجل قبل نظام العيلة (عشان اشتراك ntfy القديم يفضل شغال)
+  function peerIdFor(id) { return id === 'home' ? base() + '-home' : (id === 'main' ? base() + '-phone' : base() + '-m-' + id); }
+  function inboxFor(id) { return id === 'home' ? base() + '-home' : (id === 'main' ? base() : base() + '-m-' + id); }
+  function ctlFor(id) { return inboxFor(id) + '-c'; }
+  function nameOf(id) {
+    if (id === 'home') return 'البيت';
+    var m = members[id];
+    if (m && m.name) return m.name;
+    return id === 'main' ? 'الموبايل' : 'فرد من العيلة';
+  }
+  function registerMember(mid, name) {
+    if (!isHome() || !mid || mid === 'home') return;
+    var cur = members[mid];
+    if (cur && (!name || cur.name === name)) return;
+    members[mid] = {name: name || (cur && cur.name) || ''};
+    lsSet('bayt-members', members);
+    renderPeople();
+  }
+
+  // ===== الأصوات =====
   function makeWav(segs) {
     var rate = 16000, total = 0, i;
     for (i = 0; i < segs.length; i++) total += Math.floor(segs[i][1] * rate);
@@ -248,7 +292,6 @@ body:not(.video-call) #audioView{display:-webkit-box;display:flex}
         var s = 0;
         if (f1) {
           var env = Math.min(1, j / 300, (n - j) / 300);
-          // "ترعيش" زي جرس التليفون الكلاسيكي
           if (am) env *= (Math.sin(2 * Math.PI * am * j / rate) > 0 ? 1 : 0.12);
           s = (Math.sin(2 * Math.PI * f1 * j / rate) * 0.5 + (f2 ? Math.sin(2 * Math.PI * f2 * j / rate) * 0.3 : 0)) * env;
         }
@@ -261,7 +304,6 @@ body:not(.video-call) #audioView{display:-webkit-box;display:flex}
   $('backAudio').src = makeWav([[0, 0.3], [425, 1.0], [0, 2.5]]);
   $('msgAudio').src = makeWav([[0, 0.05], [1200, 0.1], [0, 0.04], [1600, 0.16], [0, 0.1]]);
 
-  // رنة مخصصة يختارها المستخدم من ملفاته (تتحفظ على الجهاز)
   var RING_KEY = 'bayt-ringtone';
   function applyRing() {
     var c = null; try { c = localStorage.getItem(RING_KEY); } catch (e) {}
@@ -270,7 +312,6 @@ body:not(.video-call) #audioView{display:-webkit-box;display:flex}
   }
   applyRing();
 
-  // iOS يسمح بتشغيل الصوت لاحقًا فقط لو اشتغل مرة بعد ضغطة من المستخدم
   function unlockAudio() {
     ['ringAudio', 'backAudio', 'msgAudio'].forEach(function (id) {
       var a = $(id);
@@ -281,6 +322,7 @@ body:not(.video-call) #audioView{display:-webkit-box;display:flex}
       } catch (e) {}
     });
   }
+  var vibInt = null;
   function playSound(id) {
     stopSounds();
     var a = $(id); a.currentTime = 0;
@@ -294,27 +336,30 @@ body:not(.video-call) #audioView{display:-webkit-box;display:flex}
     ['ringAudio', 'backAudio'].forEach(function (id) { try { $(id).pause(); } catch (e) {} });
     clearInterval(vibInt); if (navigator.vibrate) navigator.vibrate(0);
   }
+  function ping() {
+    try { var a = $('msgAudio'); a.currentTime = 0; var p = a.play(); if (p && p.catch) p.catch(function () {}); } catch (e) {}
+    if (navigator.vibrate) navigator.vibrate(200);
+  }
 
-  // ===== فحص دعم المتصفح =====
   function supportProblem() {
     if (typeof Peer === 'undefined') return 'تعذّر تحميل مكتبة الاتصال. تأكد من الإنترنت ثم أعد تحميل الصفحة.';
     if (location.protocol !== 'https:' && location.hostname !== 'localhost') return 'لازم تفتح الصفحة برابط https.';
-    if (window.navigator.standalone) return 'افتح الصفحة من Safari مباشرة، وليس من أيقونة الشاشة الرئيسية (iOS 12 لا يسمح بالكاميرا هناك).';
+    if (window.navigator.standalone) return 'افتح الصفحة من Safari مباشرة، وليس من أيقونة الشاشة الرئيسية.';
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || !window.RTCPeerConnection) return 'هذا المتصفح لا يدعم المكالمات. استخدم Safari على الـ iPad وChrome على أندرويد.';
     return '';
   }
 
-  // ===== الاتصال بخادم الإشارة =====
+  // ===== خادم المكالمات =====
+  var peer = null, peerOpen = false;
   function setStatus(on, txt) {
     peerOpen = on;
     $('dot').className = on ? 'dot on' : 'dot';
     $('statusText').textContent = txt || (on ? 'متصل وجاهز' : 'جارٍ الاتصال بالخادم...');
   }
-
   function startPeer() {
     if (peer && !peer.destroyed) { try { peer.destroy(); } catch (e) {} }
     setStatus(false);
-    peer = new Peer(myId, {config: {iceServers: ICE_SERVERS}, debug: 1});
+    peer = new Peer(peerIdFor(ME), {config: {iceServers: ICE_SERVERS}, debug: 1});
     peer.on('open', function () { setStatus(true); });
     peer.on('disconnected', function () {
       setStatus(false);
@@ -339,8 +384,6 @@ body:not(.video-call) #audioView{display:-webkit-box;display:flex}
     peer.on('call', onIncomingCall);
     peer.on('connection', onDataConnection);
   }
-
-  // إعادة الربط لما ترجع للصفحة أو كل 10 ثواني لو انقطع
   setInterval(function () {
     if (!peer) return;
     if (peer.destroyed) startPeer();
@@ -353,7 +396,12 @@ body:not(.video-call) #audioView{display:-webkit-box;display:flex}
     }
   });
 
-  // ===== رسائل التحكم (رفض / إنهاء / إلغاء) =====
+  // ===== المكالمات =====
+  var mediaCall = null, dataConn = null, pendingCall = null, localStream = null;
+  var callType = 'audio', callWith = '', inCall = false, connected = false, isCaller = false, notified = false;
+  var timerInt = null, callStart = 0, outgoingTimeout = null, incomingTimeout = null, retryT = null;
+  var micOn = true, camOn = true;
+
   function send(m) { try { if (dataConn && dataConn.open) dataConn.send(m); } catch (e) {} }
 
   function onDataConnection(conn) {
@@ -364,18 +412,16 @@ body:not(.video-call) #audioView{display:-webkit-box;display:flex}
     dataConn = conn;
     conn.on('data', onMsg);
   }
-
   function onMsg(m) {
     if (!m || !m.t) return;
     if (m.t === 'cancel') {
-      if (pendingCall) { closePending(); toast('فاتتك مكالمة من ' + roleLabel(otherRole())); }
+      if (pendingCall) { var who = nameOf(callWith); closePending(); toast('فاتتك مكالمة من ' + who); }
       else if (inCall) endCall('انتهت المكالمة');
     } else if (m.t === 'reject') endCall('تم رفض المكالمة');
     else if (m.t === 'hangup') endCall('انتهت المكالمة');
-    else if (m.t === 'busy') endCall('الطرف الآخر في مكالمة الآن');
+    else if (m.t === 'busy') endCall(nameOf(callWith) + ' في مكالمة الآن');
   }
 
-  // ===== الكاميرا والمايك =====
   function getMedia(type) {
     return navigator.mediaDevices.getUserMedia({
       audio: {echoCancellation: true, noiseSuppression: true},
@@ -383,13 +429,13 @@ body:not(.video-call) #audioView{display:-webkit-box;display:flex}
     });
   }
 
-  // ===== مكالمة صادرة =====
-  function makeCall(type) {
+  function makeCall(type, withId) {
     var prob = supportProblem(); if (prob) { toast(prob); return; }
     if (!peerOpen) { toast('لسه بيتصل بالخادم، جرّب بعد ثواني'); return; }
     if (inCall || pendingCall) return;
-    callType = type; isCaller = true; inCall = true; connected = false; notified = false;
-    enterCallUI('جارٍ الاتصال بـ ' + roleLabel(otherRole()) + '...');
+    rememberScreen();
+    callType = type; callWith = withId; isCaller = true; inCall = true; connected = false; notified = false;
+    enterCallUI('جارٍ الاتصال بـ ' + nameOf(withId) + '...');
     getMedia(type).then(function (stream) {
       if (!inCall) { stream.getTracks().forEach(function (t) { t.stop(); }); return; }
       localStream = stream; attachLocal();
@@ -401,75 +447,67 @@ body:not(.video-call) #audioView{display:-webkit-box;display:flex}
     });
   }
 
-  // محاولة اتصال واحدة (تتكرر تلقائيًا لو الطرف الآخر لسه بيفتح الصفحة)
   function dialOnce() {
     if (!inCall || connected || !localStream) return;
     if (!peerOpen) { clearTimeout(retryT); retryT = setTimeout(dialOnce, 3000); return; }
-    dataConn = peer.connect(otherId, {serialization: 'json', reliable: true});
+    var target = peerIdFor(callWith);
+    dataConn = peer.connect(target, {serialization: 'json', reliable: true});
     dataConn.on('data', onMsg);
-    var call = peer.call(otherId, localStream, {metadata: {type: callType}});
+    var call = peer.call(target, localStream, {metadata: {type: callType, from: ME, name: cfg.name || ''}});
     if (!call) { clearTimeout(retryT); retryT = setTimeout(dialOnce, 4000); return; }
     mediaCall = call; setupMediaCall(call);
   }
 
-  // الطرف الآخر مش فاتح الصفحة: نبعت تنبيه للموبايل ونعيد المحاولة لحد ما يفتح
+  // الطرف التاني مش فاتح: لو موبايل نبعتله تنبيه ونعيد المحاولة لحد ما يفتح
   function onOtherOffline() {
     var c = mediaCall; mediaCall = null; if (c) { try { c.close(); } catch (e) {} }
     var d = dataConn; dataConn = null; if (d) { try { d.close(); } catch (e) {} }
-    if (otherRole() === 'phone') {
+    if (callWith !== 'home') {
       if (!notified) {
-        notified = true; sendPush();
+        notified = true; sendCallPush();
         clearTimeout(outgoingTimeout);
         outgoingTimeout = setTimeout(function () { if (inCall && !connected) { send({t: 'cancel'}); endCall('لم يتم الرد'); } }, 90000);
       }
-      $('callStatus').textContent = 'تم تنبيه الموبايل... في انتظار الرد';
+      $('callStatus').textContent = 'تم تنبيه ' + nameOf(callWith) + '... في انتظار الرد';
       clearTimeout(retryT); retryT = setTimeout(dialOnce, 4000);
     } else {
-      endCall(roleLabel(otherRole()) + ' غير متصل الآن. تأكد أن الصفحة مفتوحة عليه.');
+      endCall('الـ iPad في البيت غير متصل الآن. لازم الصفحة تكون مفتوحة عليه.');
     }
   }
-
-  function pushTopic() { return 'baytcall-' + cfg.code; }
-
-  function sendPush() {
+  function sendCallPush() {
     try {
-      var url = location.href.split('#')[0].split('?')[0] + '?auto=1';
-      fetch(NTFY_SERVER + '/', {
-        method: 'POST',
-        body: JSON.stringify({
-          topic: pushTopic(),
-          title: 'مكالمة من البيت 📞',
-          message: roleLabel(cfg.role) + ' بيتصل بيك (' + (callType === 'video' ? 'فيديو' : 'صوت') + ') — اضغط للرد',
-          priority: 5,
-          tags: ['telephone_receiver'],
-          click: url
-        })
-      }).catch(function () {});
+      fetch(NTFY + '/', {method: 'POST', body: JSON.stringify({
+        topic: inboxFor(callWith),
+        title: 'مكالمة من البيت 📞',
+        message: 'البيت بيتصل بيك (' + (callType === 'video' ? 'فيديو' : 'صوت') + ') — اضغط للرد',
+        priority: 5, tags: ['telephone_receiver'], click: baseUrl() + '?auto=1'
+      })}).catch(function () {});
     } catch (e) {}
   }
 
-  // ===== مكالمة واردة =====
   function onIncomingCall(call) {
     if (inCall || pendingCall) { try { call.close(); } catch (e) {} return; }
+    var md = call.metadata || {};
+    rememberScreen();
     pendingCall = call;
-    callType = (call.metadata && call.metadata.type === 'video') ? 'video' : 'audio';
+    callWith = md.from || (isHome() ? 'main' : 'home');
+    if (md.name) registerMember(callWith, md.name); else registerMember(callWith, '');
+    callType = md.type === 'video' ? 'video' : 'audio';
     $('inIco').textContent = callType === 'video' ? '🎥' : '📞';
     $('inTitle').textContent = callType === 'video' ? 'مكالمة فيديو واردة' : 'مكالمة صوتية واردة';
-    $('inFrom').textContent = 'من ' + roleLabel(otherRole());
-    show('incoming'); playSound('ringAudio');
+    $('inFrom').textContent = 'من ' + nameOf(callWith);
+    hideSheet(); show('incoming'); playSound('ringAudio');
     clearTimeout(incomingTimeout);
-    incomingTimeout = setTimeout(function () { if (pendingCall === call) { send({t: 'reject'}); closePending(); toast('فاتتك مكالمة'); } }, 60000);
+    incomingTimeout = setTimeout(function () { if (pendingCall === call) { send({t: 'reject'}); closePending(); toast('فاتتك مكالمة من ' + nameOf(callWith)); } }, 60000);
   }
-
   function closePending() {
     clearTimeout(incomingTimeout); stopSounds();
     var c = pendingCall; pendingCall = null;
     if (c) { try { c.close(); } catch (e) {} }
     var d = dataConn; dataConn = null;
     if (d) setTimeout(function () { try { d.close(); } catch (e) {} }, 500);
-    show('idle');
+    backHome();
   }
-
   function answer() {
     var call = pendingCall; if (!call) return;
     clearTimeout(incomingTimeout); stopSounds();
@@ -486,10 +524,8 @@ body:not(.video-call) #audioView{display:-webkit-box;display:flex}
       endCall('لازم تسمح بالوصول للمايك' + (callType === 'video' ? ' والكاميرا' : ''));
     });
   }
-
   function reject() { send({t: 'reject'}); closePending(); }
 
-  // ===== أثناء المكالمة =====
   function setupMediaCall(call) {
     call.on('stream', function (rs) {
       if (mediaCall !== call) return;
@@ -499,8 +535,8 @@ body:not(.video-call) #audioView{display:-webkit-box;display:flex}
         var p = v.play(); if (p && p.catch) p.catch(function () { $('tapAudio').style.display = 'block'; });
       }
       if (!connected) {
-        connected = true; clearTimeout(outgoingTimeout); stopSounds();
-        $('callStatus').textContent = roleLabel(otherRole()); startTimer();
+        connected = true; clearTimeout(outgoingTimeout); clearTimeout(retryT); stopSounds();
+        $('callStatus').textContent = nameOf(callWith); startTimer();
       }
     });
     call.on('close', function () { if (mediaCall === call) endCall('انتهت المكالمة'); });
@@ -512,37 +548,32 @@ body:not(.video-call) #audioView{display:-webkit-box;display:flex}
         var s = pc.iceConnectionState;
         if (s === 'failed') { send({t: 'hangup'}); endCall('تعذّر الربط بين الجهازين. غالبًا تحتاج إضافة خادم TURN.'); }
         else if (s === 'disconnected') $('callStatus').textContent = 'الاتصال ضعيف...';
-        else if ((s === 'connected' || s === 'completed') && connected) $('callStatus').textContent = roleLabel(otherRole());
+        else if ((s === 'connected' || s === 'completed') && connected) $('callStatus').textContent = nameOf(callWith);
       });
     }, 0);
   }
-
   function enterCallUI(status) {
     micOn = true; camOn = true;
     $('micBtn').className = 'cbtn'; $('camBtn').className = 'cbtn';
     $('camBtn').style.display = callType === 'video' ? 'inline-block' : 'none';
     document.body.classList.toggle('video-call', callType === 'video');
-    $('audioName').textContent = roleLabel(otherRole());
+    $('audioName').textContent = nameOf(callWith);
     $('callStatus').textContent = status; $('callTime').textContent = '';
     $('tapAudio').style.display = 'none';
-    show('incall');
+    hideSheet(); show('incall');
   }
-
   function attachLocal() {
     if (callType !== 'video') return;
     var lv = $('localVideo'); lv.srcObject = localStream;
     var p = lv.play(); if (p && p.catch) p.catch(function () {});
   }
-
   function startTimer() {
     callStart = Date.now(); clearInterval(timerInt);
     timerInt = setInterval(function () {
-      var s = Math.floor((Date.now() - callStart) / 1000);
-      var mm = Math.floor(s / 60), ss = s % 60;
+      var s = Math.floor((Date.now() - callStart) / 1000), mm = Math.floor(s / 60), ss = s % 60;
       $('callTime').textContent = (mm < 10 ? '0' : '') + mm + ':' + (ss < 10 ? '0' : '') + ss;
     }, 1000);
   }
-
   function endCall(msg) {
     if (!inCall) return;
     inCall = false; connected = false; notified = false;
@@ -552,11 +583,9 @@ body:not(.video-call) #audioView{display:-webkit-box;display:flex}
     if (localStream) { localStream.getTracks().forEach(function (t) { t.stop(); }); localStream = null; }
     $('remoteVideo').srcObject = null; $('localVideo').srcObject = null;
     document.body.classList.remove('video-call');
-    show('idle'); if (msg) toast(msg);
+    backHome(); if (msg) toast(msg);
   }
-
   function hangUp() { send({t: connected ? 'hangup' : 'cancel'}); endCall(connected ? 'انتهت المكالمة' : 'تم الإلغاء'); }
-
   function toggleMic() {
     if (!localStream) return; micOn = !micOn;
     localStream.getAudioTracks().forEach(function (t) { t.enabled = micOn; });
@@ -568,14 +597,90 @@ body:not(.video-call) #audioView{display:-webkit-box;display:flex}
     $('camBtn').className = camOn ? 'cbtn' : 'cbtn off';
   }
 
-  // ===== الشات (عن طريق ntfy: الرسالة توصل حتى لو الطرف التاني مقفول، وتتحفظ 12 ساعة على الخادم) =====
-  var CHAT_KEY = 'bayt-chat', READ_KEY = 'bayt-chat-read';
-  var chatMsgs = [], chatIds = {}, lastRead = 0, es = null, chatStarted = false;
+  // ===== الشات =====
+  // كل رسالة: {id, time, peer, mine, text, att}. peer = الطرف التاني ('home' أو رقم الفرد)
+  var chatMsgs = [], chatIds = {};
+  var dels = {}, cleared = {}, lastRead = {}, seenBy = {}, readSent = {};
+  var currentChat = '', chatStarted = false;
 
-  // قناة كل جهاز: الموبايل = نفس قناة تنبيه المكالمات، والـ iPad قناة منفصلة
-  function topicFor(role) { return role === 'phone' ? 'baytcall-' + cfg.code : 'baytcall-' + cfg.code + '-home'; }
-  function baseUrl() { return location.href.split('#')[0].split('?')[0]; }
-  function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+  function loadChat() {
+    chatMsgs = lsGet('bayt-chat2', null);
+    if (!chatMsgs) {
+      // تحويل الرسائل من النسخة القديمة (جهازين بس)
+      var old = lsGet('bayt-chat', []);
+      chatMsgs = [];
+      old.forEach(function (m) {
+        if (!m || !m.id || m.pending || m.failed) return;
+        chatMsgs.push({id: m.id, time: m.time, text: m.text, att: m.att || null,
+          peer: isHome() ? 'main' : 'home', mine: m.from === cfg.role});
+      });
+      if (isHome() && chatMsgs.length) registerMember('main', '');
+    }
+    chatMsgs = chatMsgs.filter(function (m) { return m && m.id && !m.pending && !m.failed; });
+    dels = lsGet('bayt-dels', {}); cleared = lsGet('bayt-cleared', {});
+    lastRead = lsGet('bayt-read2', {}); seenBy = lsGet('bayt-seen', {}); readSent = lsGet('bayt-readsent', {});
+    var oldRead = lsGet('bayt-chat-read', 0);
+    if (oldRead && !lastRead[isHome() ? 'main' : 'home']) lastRead[isHome() ? 'main' : 'home'] = oldRead;
+    chatIds = {};
+    chatMsgs.forEach(function (m) { chatIds[m.id] = true; });
+    saveChat();
+  }
+  function saveChat() {
+    if (chatMsgs.length > 800) chatMsgs = chatMsgs.slice(chatMsgs.length - 800);
+    lsSet('bayt-chat2', chatMsgs.filter(function (m) { return !m.pending && !m.failed; }));
+  }
+  function saveDels() {
+    var k = Object.keys(dels); if (k.length > 1500) { k.slice(0, k.length - 1500).forEach(function (x) { delete dels[x]; }); }
+    lsSet('bayt-dels', dels);
+  }
+  function chatOpen(peerId) { return $('chat').classList.contains('active') && (!peerId || currentChat === peerId); }
+
+  function addMsg(m, live) {
+    if (chatIds[m.id] || dels[m.id]) return;
+    if (m.time <= (cleared[m.peer] || 0)) return;
+    if (isHome()) registerMember(m.peer, '');
+    chatIds[m.id] = true; chatMsgs.push(m);
+    chatMsgs.sort(function (a, b) { return a.time - b.time; });
+    saveChat();
+    if (m.att) ensureMedia(m);
+    if (!m.mine && live) {
+      if (chatOpen(m.peer) && document.visibilityState === 'visible') markRead(m.peer);
+      else {
+        if (!inCall && !pendingCall) ping();
+        if (!chatOpen(m.peer)) toast('💬 ' + nameOf(m.peer) + ': ' + (m.att ? labelFor(m.att.type, m.att.name) : m.text).slice(0, 60));
+      }
+    }
+    if (chatOpen(m.peer)) renderChat();
+    updateUnread();
+  }
+  function removeMsg(id) {
+    var before = chatMsgs.length;
+    chatMsgs = chatMsgs.filter(function (m) { return m.id !== id; });
+    if (chatMsgs.length !== before) { idbDel(id); if (mediaUrls[id]) { try { URL.revokeObjectURL(mediaUrls[id]); } catch (e) {} delete mediaUrls[id]; } }
+  }
+
+  function unreadFor(p) {
+    var n = 0, lr = lastRead[p] || 0;
+    chatMsgs.forEach(function (m) { if (m.peer === p && !m.mine && m.time > lr) n++; });
+    return n;
+  }
+  function updateUnread() {
+    if (isHome()) { renderPeople(); return; }
+    var n = unreadFor('home'), b = $('unread');
+    if (n > 0) { b.textContent = n; b.style.display = 'inline-block'; } else b.style.display = 'none';
+  }
+  // نعلّم الرسايل مقروءة ونبعت "اتشافت" للطرف التاني
+  function markRead(p) {
+    var t = 0;
+    chatMsgs.forEach(function (m) { if (m.peer === p && !m.mine && m.time > t) t = m.time; });
+    if (t > (lastRead[p] || 0)) { lastRead[p] = t; lsSet('bayt-read2', lastRead); }
+    if (t > (readSent[p] || 0)) {
+      readSent[p] = t; lsSet('bayt-readsent', readSent);
+      sendCtl(p, {t: 'read', upTo: t});
+    }
+    updateUnread();
+  }
+
   function fmtTime(t) {
     var d = new Date(t * 1000), now = new Date();
     var hh = d.getHours(), mm = d.getMinutes(), ap = hh < 12 ? 'ص' : 'م';
@@ -585,53 +690,8 @@ body:not(.video-call) #audioView{display:-webkit-box;display:flex}
     return s;
   }
 
-  function loadChat() {
-    try { chatMsgs = JSON.parse(localStorage.getItem(CHAT_KEY) || '[]'); } catch (e) { chatMsgs = []; }
-    try { lastRead = parseInt(localStorage.getItem(READ_KEY) || '0', 10) || 0; } catch (e) { lastRead = 0; }
-    chatIds = {};
-    chatMsgs = chatMsgs.filter(function (m) { return m && m.id && !m.pending && !m.failed; });
-    chatMsgs.forEach(function (m) { chatIds[m.id] = true; });
-  }
-  function saveChat() {
-    if (chatMsgs.length > 500) chatMsgs = chatMsgs.slice(chatMsgs.length - 500);
-    try { localStorage.setItem(CHAT_KEY, JSON.stringify(chatMsgs)); } catch (e) {}
-  }
-  function chatOpen() { return $('chat').classList.contains('active'); }
-
-  function addMsg(m, live) {
-    if (chatIds[m.id]) return;
-    chatIds[m.id] = true; chatMsgs.push(m);
-    chatMsgs.sort(function (a, b) { return a.time - b.time; });
-    saveChat();
-    if (m.att) ensureMedia(m);
-    if (m.from !== cfg.role && live) {
-      if (chatOpen() && document.visibilityState === 'visible') markRead();
-      else {
-        if (!inCall && !pendingCall) { try { var a = $('msgAudio'); a.currentTime = 0; var p = a.play(); if (p && p.catch) p.catch(function () {}); } catch (e) {} }
-        if (navigator.vibrate) navigator.vibrate(200);
-        if (!chatOpen()) toast('💬 رسالة من ' + roleLabel(m.from) + ': ' + m.text.slice(0, 60));
-      }
-    }
-    if (chatOpen()) renderChat();
-    updateUnread();
-  }
-
-  function updateUnread() {
-    var n = 0;
-    chatMsgs.forEach(function (m) { if (m.from !== cfg.role && m.time > lastRead) n++; });
-    var b = $('unread');
-    if (n > 0) { b.textContent = n; b.style.display = 'inline-block'; } else b.style.display = 'none';
-  }
-  function markRead() {
-    var t = 0; chatMsgs.forEach(function (m) { if (m.time > t) t = m.time; });
-    lastRead = Math.max(lastRead, t);
-    try { localStorage.setItem(READ_KEY, String(lastRead)); } catch (e) {}
-    updateUnread();
-  }
-
   function renderChat() {
-    var box = $('msgs'), html = '';
-    // ما نقطعش فيديو شغّال: نأجل التحديث لحد ما يقف
+    var box = $('msgs');
     var vids = box.getElementsByTagName('video');
     for (var vi = 0; vi < vids.length; vi++) {
       if (!vids[vi].paused && !vids[vi].ended) {
@@ -639,34 +699,207 @@ body:not(.video-call) #audioView{display:-webkit-box;display:flex}
         return;
       }
     }
+    var html = '', seen = seenBy[currentChat] || 0, any = false;
     chatMsgs.forEach(function (m) {
-      var me = m.from === cfg.role, body;
-      if (m.att) body = attHtml(m);
-      else body = esc(m.text);
-      html += '<div class="mrow ' + (me ? 'me' : 'them') + '"><div class="msg">' + body +
-        '<span class="t">' + fmtTime(m.time) +
-        (m.pending ? ' ⏳' + (m.att && m.progress ? ' ' + m.progress + '%' : '') : '') +
-        (m.failed ? ' ⚠️ لم تُرسل' : '') + '</span></div></div>';
+      if (m.peer !== currentChat) return;
+      any = true;
+      var body = m.att ? attHtml(m) : esc(m.text);
+      var tick = '';
+      if (m.mine) {
+        if (m.pending) tick = ' ⏳' + (m.att && m.progress ? ' ' + m.progress + '%' : '');
+        else if (m.failed) tick = ' ⚠️ لم تُرسل';
+        else if (m.time <= seen) tick = '<span class="tick seen">✓✓</span>';
+        else tick = '<span class="tick">✓</span>';
+      }
+      html += '<div class="mrow ' + (m.mine ? 'me' : 'them') + '"><div class="msg" data-id="' + esc(m.id) + '">' + body +
+        '<span class="t">' + fmtTime(m.time) + ' ' + tick + '</span></div></div>';
     });
-    if (!chatMsgs.length) html = '<p style="text-align:center;margin:40px auto">لا توجد رسائل بعد. اكتب أول رسالة 👋</p>';
-    html += '<div class="chat-note">الرسائل محفوظة على هذا الجهاز</div>';
+    if (!any) html = '<p style="text-align:center;margin:40px auto">لا توجد رسائل بعد. اكتب أول رسالة 👋</p>';
+    html += '<div class="chat-note">اضغط على أي رسالة لحذفها • ✓ اتبعتت • <span style="color:var(--seen)">✓✓</span> اتشافت</div>';
     box.innerHTML = html;
     box.scrollTop = box.scrollHeight;
   }
 
-  // أحداث ntfy: ناخد بس الرسائل اللي عليها علامة chat (مش تنبيهات المكالمات)
-  function handleEvent(e, fromRole, live) {
-    if (!e || e.event !== 'message' || !e.tags || e.tags.indexOf('chat') < 0) return;
-    addMsg({id: e.id, time: e.time, from: fromRole, text: e.message || '', att: e.attachment || null}, live);
+  // ===== التواصل مع ntfy =====
+  function handleEvent(e, live) {
+    if (!e || e.event !== 'message' || !e.tags) return;
+    if (e.tags.indexOf('ctl') >= 0) { handleCtl(e); return; }
+    if (e.tags.indexOf('chat') < 0) return;
+    var from = '', i;
+    for (i = 0; i < e.tags.length; i++) if (e.tags[i].indexOf('f-') === 0) from = e.tags[i].slice(2);
+    var m = {id: e.id, time: e.time, text: e.message || '', att: e.attachment || null};
+    if (isHome()) {
+      if (e.topic !== inboxFor('home')) return;
+      m.peer = from || 'main'; m.mine = false;
+    } else {
+      if (e.topic === inboxFor(ME)) { m.peer = 'home'; m.mine = false; }
+      else if (e.topic === inboxFor('home') && from === ME) { m.peer = 'home'; m.mine = true; }
+      else return;
+    }
+    addMsg(m, live);
   }
 
-  // ===== الصور والفيديو والملفات =====
-  var MAX_FILE = 15 * 1024 * 1024; // حد خادم ntfy المجاني
-  var idb = null, mediaUrls = {}, downloading = {};
+  function handleCtl(e) {
+    var c = null; try { c = JSON.parse(e.message); } catch (x) { return; }
+    if (!c || !c.t) return;
+    var from = c.from || '';
+    if (isHome() && c.t === 'hello') { registerMember(c.mid, c.name || ''); return; }
+    if (!from || (!isHome() && from !== 'home')) return;
+    if (c.t === 'read') {
+      if ((c.upTo || 0) > (seenBy[from] || 0)) { seenBy[from] = c.upTo; lsSet('bayt-seen', seenBy); if (chatOpen(from)) renderChat(); }
+    } else if (c.t === 'del' && c.ids && c.ids.length) {
+      c.ids.forEach(function (id) {
+        var m = null; chatMsgs.forEach(function (x) { if (x.id === id) m = x; });
+        if (m && m.peer !== from) return; // مسموح يمسح رسايل المحادثة بينه وبيننا بس
+        dels[id] = 1; removeMsg(id);
+      });
+      saveDels(); saveChat(); if (chatOpen(from)) renderChat(); updateUnread();
+    } else if (c.t === 'clear' && c.before) {
+      if (c.before > (cleared[from] || 0)) {
+        cleared[from] = c.before; lsSet('bayt-cleared', cleared);
+        chatMsgs.filter(function (m) { return m.peer === from && m.time <= c.before; }).forEach(function (m) { removeMsg(m.id); });
+        saveChat(); if (chatOpen(from)) renderChat(); updateUnread();
+      }
+    }
+  }
 
+  function sendCtl(to, payload) {
+    payload.from = ME;
+    try {
+      fetch(NTFY + '/', {method: 'POST', body: JSON.stringify({topic: ctlFor(to), message: JSON.stringify(payload), tags: ['ctl'], priority: 1})}).catch(function () {});
+    } catch (e) {}
+  }
+
+  function myTopics() {
+    var t = [inboxFor(ME), ctlFor(ME)];
+    if (!isHome()) t.push(inboxFor('home')); // عشان نرجّع رسايلي اللي بعتها للبيت لو الصفحة اتمسحت
+    return t;
+  }
+  function syncAll() {
+    fetch(NTFY + '/' + myTopics().join(',') + '/json?poll=1&since=12h').then(function (r) { return r.text(); }).then(function (t) {
+      t.split('\n').forEach(function (line) { if (!line) return; try { handleEvent(JSON.parse(line), false); } catch (x) {} });
+    }).catch(function () {});
+  }
+  function announce() {
+    if (isHome()) return;
+    sendCtl('home', {t: 'hello', mid: ME, name: cfg.name || ''});
+  }
+
+  function startChat() {
+    if (chatStarted) return; chatStarted = true;
+    loadChat(); updateUnread();
+    idbOpen().then(function () {
+      chatMsgs.forEach(function (m) { if (m.att) ensureMedia(m); });
+      syncAll();
+    });
+    if (window.EventSource) {
+      try {
+        // على الـ iPad والموبايل: بنسمع رسايلنا + رسايل التحكم (اتشافت/حذف) لحظة بلحظة
+        var es = new EventSource(NTFY + '/' + inboxFor(ME) + ',' + ctlFor(ME) + '/sse');
+        es.onmessage = function (ev) { try { handleEvent(JSON.parse(ev.data), true); } catch (x) {} };
+        es.onerror = function () {};
+      } catch (e) {}
+    }
+    setInterval(syncAll, 60000);
+    document.addEventListener('visibilitychange', function () {
+      if (document.visibilityState === 'visible') { syncAll(); if (chatOpen()) markRead(currentChat); }
+    });
+    announce(); setInterval(announce, 6 * 3600 * 1000);
+  }
+
+  function openChat(p) {
+    currentChat = p;
+    $('chatTitle').textContent = nameOf(p);
+    hideSheet(); show('chat'); renderChat(); markRead(p); syncAll();
+  }
+
+  function sendChat() {
+    var ta = $('chatText'), txt = (ta.value || '').replace(/^\s+|\s+$/g, '');
+    if (!txt || !currentChat) return;
+    if (txt.length > 2000) txt = txt.slice(0, 2000);
+    ta.value = '';
+    var to = currentChat;
+    var body = {topic: inboxFor(to), message: txt, tags: ['chat', 'speech_balloon'], priority: 4};
+    if (to === 'home') body.tags.push('f-' + ME);
+    else { body.title = 'رسالة من البيت 💬'; body.click = baseUrl() + '?chat=1'; }
+    var tmp = {id: 'tmp' + Date.now() + Math.random(), time: nowSec(), peer: to, mine: true, text: txt, pending: true};
+    chatIds[tmp.id] = true; chatMsgs.push(tmp); renderChat();
+    fetch(NTFY + '/', {method: 'POST', body: JSON.stringify(body)}).then(function (r) {
+      if (!r.ok) throw new Error('http ' + r.status);
+      return r.json();
+    }).then(function (j) {
+      tmp.pending = false; delete chatIds[tmp.id];
+      if (j && j.id) { tmp.id = j.id; tmp.time = j.time || tmp.time; }
+      chatIds[tmp.id] = true; saveChat(); if (chatOpen(to)) renderChat();
+    }).catch(function () {
+      tmp.pending = false; tmp.failed = true; if (chatOpen(to)) renderChat();
+      toast('الرسالة لم تُرسل. تأكد من الإنترنت وجرّب تاني.');
+      if (!ta.value) ta.value = txt;
+    });
+  }
+
+  // ===== الحذف =====
+  function deleteMsg(id, both) {
+    var m = null; chatMsgs.forEach(function (x) { if (x.id === id) m = x; });
+    if (!m) return;
+    dels[id] = 1; saveDels();
+    removeMsg(id); saveChat(); renderChat(); updateUnread();
+    if (both && !m.pending && !m.failed) sendCtl(m.peer, {t: 'del', ids: [id]});
+  }
+  function clearChat(p, both) {
+    var before = nowSec() + 5;
+    chatMsgs.forEach(function (m) { if (m.peer === p && m.time >= before) before = m.time + 1; });
+    cleared[p] = before; lsSet('bayt-cleared', cleared);
+    chatMsgs.filter(function (m) { return m.peer === p; }).forEach(function (m) { removeMsg(m.id); });
+    saveChat(); renderChat(); updateUnread();
+    if (both) sendCtl(p, {t: 'clear', before: before});
+    toast(both ? 'اتمسحت المحادثة من الجهازين' : 'اتمسحت المحادثة من الجهاز ده');
+  }
+
+  // قائمة اختيارات من تحت (زي واتساب)
+  function sheet(title, opts) {
+    $('sheetTitle').textContent = title;
+    var box = $('sheetBtns'); box.innerHTML = '';
+    opts.concat([{label: 'إلغاء', cls: 'ghost'}]).forEach(function (o) {
+      var b = document.createElement('button');
+      b.className = 'btn ' + (o.cls || ''); b.textContent = o.label;
+      b.onclick = function () { hideSheet(); if (o.fn) o.fn(); };
+      box.appendChild(b);
+    });
+    $('sheet').style.display = 'block';
+  }
+  function hideSheet() { $('sheet').style.display = 'none'; }
+  $('sheet').onclick = function (e) { if (e.target === $('sheet')) hideSheet(); };
+
+  $('msgs').addEventListener('click', function (e) {
+    var el = e.target;
+    while (el && el !== this) {
+      var tag = el.tagName;
+      if (tag === 'A' || tag === 'VIDEO' || tag === 'AUDIO') return;
+      if (el.className === 'msg') break;
+      el = el.parentNode;
+    }
+    if (!el || el === this) return;
+    var id = el.getAttribute('data-id'), m = null;
+    chatMsgs.forEach(function (x) { if (x.id === id) m = x; });
+    if (!m) return;
+    var opts = [];
+    if (m.mine && !m.pending && !m.failed) opts.push({label: '🗑 حذف عند الطرفين', cls: 'red', fn: function () { deleteMsg(id, true); }});
+    opts.push({label: '🗑 حذف عندي بس', cls: m.mine ? '' : 'red', fn: function () { deleteMsg(id, false); }});
+    sheet('الرسالة', opts);
+  });
+  $('chatMenu').onclick = function () {
+    var p = currentChat;
+    sheet('حذف المحادثة كلها مع ' + nameOf(p) + '؟', [
+      {label: 'حذف من الجهازين', cls: 'red', fn: function () { clearChat(p, true); }},
+      {label: 'حذف من الجهاز ده بس', fn: function () { clearChat(p, false); }}
+    ]);
+  };
+
+  // ===== الصور والفيديو والملفات =====
+  var idb = null, mediaUrls = {}, downloading = {};
   function idbOpen() {
     return new Promise(function (res) {
-      // بعض نسخ Safari القديمة بتعلّق هنا، فما نستناش أكتر من 3 ثواني
       setTimeout(function () { res(idb); }, 3000);
       try {
         var rq = indexedDB.open('bayt-media', 1);
@@ -680,10 +913,8 @@ body:not(.video-call) #audioView{display:-webkit-box;display:flex}
     return new Promise(function (res) {
       if (!idb) return res(false);
       try {
-        var tx = idb.transaction('f', 'readwrite');
-        tx.objectStore('f').put(val, key);
-        tx.oncomplete = function () { res(true); };
-        tx.onerror = tx.onabort = function () { res(false); };
+        var tx = idb.transaction('f', 'readwrite'); tx.objectStore('f').put(val, key);
+        tx.oncomplete = function () { res(true); }; tx.onerror = tx.onabort = function () { res(false); };
       } catch (e) { res(false); }
     });
   }
@@ -692,25 +923,18 @@ body:not(.video-call) #audioView{display:-webkit-box;display:flex}
       if (!idb) return res(null);
       try {
         var rq = idb.transaction('f', 'readonly').objectStore('f').get(key);
-        rq.onsuccess = function () { res(rq.result || null); };
-        rq.onerror = function () { res(null); };
+        rq.onsuccess = function () { res(rq.result || null); }; rq.onerror = function () { res(null); };
       } catch (e) { res(null); }
     });
   }
-  // Safari 12 ما فيهوش blob.arrayBuffer()
+  function idbDel(key) { if (!idb) return; try { idb.transaction('f', 'readwrite').objectStore('f').delete(key); } catch (e) {} }
   function readBuf(blob) {
     return new Promise(function (res, rej) {
-      var r = new FileReader();
-      r.onload = function () { res(r.result); };
-      r.onerror = function () { rej(r.error); };
+      var r = new FileReader(); r.onload = function () { res(r.result); }; r.onerror = function () { rej(r.error); };
       r.readAsArrayBuffer(blob);
     });
   }
-  function fmtSize(n) {
-    if (!n) return '';
-    if (n < 1024 * 1024) return Math.round(n / 1024) + ' KB';
-    return (n / 1024 / 1024).toFixed(1) + ' MB';
-  }
+  function fmtSize(n) { if (!n) return ''; if (n < 1024 * 1024) return Math.round(n / 1024) + ' KB'; return (n / 1024 / 1024).toFixed(1) + ' MB'; }
   function kindOf(type) {
     type = type || '';
     if (type.indexOf('image/') === 0) return 'image';
@@ -723,28 +947,36 @@ body:not(.video-call) #audioView{display:-webkit-box;display:flex}
     if (k === 'image') return '📷 صورة';
     if (k === 'video') return '🎥 فيديو';
     if (k === 'audio') return '🎤 ملف صوتي';
-    return '📎 ملف: ' + name;
+    return '📎 ملف: ' + (name || '');
   }
   function isExpired(m) { return m.att && m.att.expires && m.att.expires * 1000 < Date.now(); }
 
-  // نحفظ أي ملف يوصل على الجهاز فورًا، لأن الخادم بيمسحه بعد 3 ساعات
   function ensureMedia(m) {
     if (!m.att || mediaUrls[m.id] || downloading[m.id]) return;
     downloading[m.id] = true;
     idbGet(m.id).then(function (v) {
       if (v && v.buf) {
         mediaUrls[m.id] = URL.createObjectURL(new Blob([v.buf], {type: v.type || m.att.type || ''}));
-        if (chatOpen()) renderChat();
+        if (chatOpen(m.peer)) renderChat();
         return;
       }
       if (!m.att.url || isExpired(m)) return;
       return fetch(m.att.url).then(function (r) { if (!r.ok) throw new Error('dl'); return r.arrayBuffer(); }).then(function (buf) {
+        if (dels[m.id]) return;
         idbPut(m.id, {buf: buf, type: m.att.type || ''});
         mediaUrls[m.id] = URL.createObjectURL(new Blob([buf], {type: m.att.type || ''}));
-        if (chatOpen()) renderChat();
+        if (chatOpen(m.peer)) renderChat();
       });
     }).catch(function () {}).then(function () { downloading[m.id] = false; });
   }
+
+  window.bcImgErr = function (el) {
+    var alt = el.getAttribute('data-alt');
+    if (alt && el.src !== alt && !el.getAttribute('data-tried')) { el.setAttribute('data-tried', '1'); el.src = alt; return; }
+    var link = alt || el.src, div = document.createElement('div');
+    div.innerHTML = '<a href="' + esc(link) + '" target="_blank">⚠️ تعذّر عرض الصورة — اضغط لفتحها</a>';
+    var a = el.parentNode; if (a && a.parentNode) a.parentNode.replaceChild(div, a);
+  };
 
   function attHtml(m) {
     var a = m.att, src = mediaUrls[m.id] || (!isExpired(m) ? a.url : '');
@@ -754,26 +986,13 @@ body:not(.video-call) #audioView{display:-webkit-box;display:flex}
     if (k === 'video') return '<video src="' + s + '" controls playsinline preload="metadata"></video>';
     if (k === 'audio') return '<audio src="' + s + '" controls style="max-width:240px"></audio>';
     var nm = esc(a.name || 'ملف'), sz = ' <span class="t" style="display:inline">' + fmtSize(a.size) + '</span>';
-    var isIOS = /iP(ad|hone|od)/.test(navigator.userAgent);
-    if (isIOS) {
-      // Safari القديم ما بيفتحش ملفات blob في تاب جديد، فنستخدم الرابط المباشر وهو يعرضها بالمعاينة
+    if (/iP(ad|hone|od)/.test(navigator.userAgent)) {
       if (direct) return '<a href="' + direct + '" target="_blank">📎 ' + nm + '</a>' + sz;
       return '<a href="' + s + '">📎 ' + nm + '</a>' + sz;
     }
     return '<a href="' + s + '" target="_blank" download="' + esc(a.name || 'file') + '">📎 ' + nm + '</a>' + sz;
   }
 
-  // لو الصورة ما اتعرضتش: نجرب الرابط المباشر، ولو فشل نعرض زر لفتحها
-  window.bcImgErr = function (el) {
-    var alt = el.getAttribute('data-alt');
-    if (alt && el.src !== alt && !el.getAttribute('data-tried')) { el.setAttribute('data-tried', '1'); el.src = alt; return; }
-    var link = alt || el.src;
-    var div = document.createElement('div');
-    div.innerHTML = '<a href="' + esc(link) + '" target="_blank">⚠️ تعذّر عرض الصورة — اضغط لفتحها</a>';
-    var a = el.parentNode; if (a && a.parentNode) a.parentNode.replaceChild(div, a);
-  };
-
-  // تصغير الصور الكبيرة قبل الإرسال (على المتصفحات اللي بتظبط اتجاه الصورة لوحدها، زي Chrome أندرويد)
   function canAutoOrient() {
     try { return !!(window.CSS && CSS.supports && CSS.supports('image-orientation', 'from-image')); } catch (e) { return false; }
   }
@@ -788,47 +1007,41 @@ body:not(.video-call) #audioView{display:-webkit-box;display:flex}
           c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
           URL.revokeObjectURL(url);
           if (!c.toBlob) return res(f);
-          c.toBlob(function (b) {
-            if (!b || b.size >= f.size) return res(f);
-            try { b.name = (f.name || 'photo').replace(/\.[^.]+$/, '') + '.jpg'; } catch (e) {}
-            res(b);
-          }, 'image/jpeg', 0.85);
+          c.toBlob(function (b) { if (!b || b.size >= f.size) return res(f); res(b); }, 'image/jpeg', 0.85);
         } catch (e) { res(f); }
       };
       img.onerror = function () { URL.revokeObjectURL(url); res(f); };
       img.src = url;
     });
   }
-
   function sendFiles(files) {
+    var to = currentChat;
     files.forEach(function (f) {
       var origName = f.name;
       prepareFile(f).then(function (p) {
-        if (p !== f) p.name = (origName || 'photo').replace(/\.[^.]+$/, '') + '.jpg';
-        uploadFile(p);
+        var name = p === f ? (origName || ('file-' + Date.now())) : (origName || 'photo').replace(/\.[^.]+$/, '') + '.jpg';
+        uploadFile(p, name, p === f ? f.type : 'image/jpeg', to);
       });
     });
   }
-
-  function uploadFile(f) {
-    if (f.size > MAX_FILE) { toast('الملف "' + f.name + '" حجمه ' + fmtSize(f.size) + '، والحد 15 ميجا. ' + (kindOf(f.type) === 'video' ? 'جرّب فيديو أقصر.' : '')); return; }
-    var name = f.name || ('file-' + Date.now());
-    var label = labelFor(f.type, name);
-    var tmp = {id: 'tmp' + Date.now() + Math.random(), time: Math.floor(Date.now() / 1000), from: cfg.role, text: label,
-      att: {name: name, type: f.type, size: f.size}, pending: true, progress: 0};
+  function uploadFile(f, name, type, to) {
+    if (f.size > MAX_FILE) { toast('الملف "' + name + '" حجمه ' + fmtSize(f.size) + '، والحد 15 ميجا.' + (kindOf(type) === 'video' ? ' جرّب فيديو أقصر.' : '')); return; }
+    var label = labelFor(type, name);
+    var tmp = {id: 'tmp' + Date.now() + Math.random(), time: nowSec(), peer: to, mine: true, text: label,
+      att: {name: name, type: type, size: f.size}, pending: true, progress: 0};
     mediaUrls[tmp.id] = URL.createObjectURL(f);
-    chatIds[tmp.id] = true; chatMsgs.push(tmp); renderChat();
+    chatIds[tmp.id] = true; chatMsgs.push(tmp); if (chatOpen(to)) renderChat();
 
-    var qs = 'filename=' + encodeURIComponent(name) + '&message=' + encodeURIComponent(label) +
-      '&tags=chat,speech_balloon&priority=4';
-    if (otherRole() === 'phone') qs += '&title=' + encodeURIComponent('رسالة من البيت 💬') + '&click=' + encodeURIComponent(baseUrl() + '?chat=1');
+    var tags = 'chat,speech_balloon' + (to === 'home' ? ',f-' + ME : '');
+    var qs = 'filename=' + encodeURIComponent(name) + '&message=' + encodeURIComponent(label) + '&tags=' + tags + '&priority=4';
+    if (to !== 'home') qs += '&title=' + encodeURIComponent('رسالة من البيت 💬') + '&click=' + encodeURIComponent(baseUrl() + '?chat=1');
 
     var xhr = new XMLHttpRequest(), lastPaint = 0;
-    xhr.open('POST', NTFY_SERVER + '/' + topicFor(otherRole()) + '?' + qs);
+    xhr.open('POST', NTFY + '/' + inboxFor(to) + '?' + qs);
     xhr.upload.onprogress = function (ev) {
       if (!ev.lengthComputable) return;
       tmp.progress = Math.round(ev.loaded / ev.total * 100);
-      if (Date.now() - lastPaint > 400) { lastPaint = Date.now(); if (chatOpen()) renderChat(); }
+      if (Date.now() - lastPaint > 400) { lastPaint = Date.now(); if (chatOpen(to)) renderChat(); }
     };
     xhr.onload = function () {
       var j = null; try { j = JSON.parse(xhr.responseText); } catch (e) {}
@@ -837,133 +1050,120 @@ body:not(.video-call) #audioView{display:-webkit-box;display:flex}
         tmp.pending = false; delete chatIds[oldId];
         tmp.id = j.id; tmp.time = j.time || tmp.time;
         if (j.attachment) tmp.att = j.attachment;
-        chatIds[tmp.id] = true;
-        mediaUrls[tmp.id] = mediaUrls[oldId];
-        readBuf(f).then(function (buf) { idbPut(tmp.id, {buf: buf, type: f.type || ''}); }).catch(function () {});
-        saveChat(); if (chatOpen()) renderChat();
+        chatIds[tmp.id] = true; mediaUrls[tmp.id] = mediaUrls[oldId];
+        readBuf(f).then(function (buf) { idbPut(tmp.id, {buf: buf, type: type || ''}); }).catch(function () {});
+        saveChat(); if (chatOpen(to)) renderChat();
       } else fail(xhr.status === 413 ? 'الملف أكبر من المسموح' : (xhr.status === 429 ? 'وصلت لحد الإرسال المجاني، جرّب بعد شوية' : ''));
     };
     xhr.onerror = function () { fail(''); };
     function fail(why) {
-      tmp.pending = false; tmp.failed = true; if (chatOpen()) renderChat();
+      tmp.pending = false; tmp.failed = true; if (chatOpen(to)) renderChat();
       toast('الملف لم يُرسل. ' + (why || 'تأكد من الإنترنت وجرّب تاني.'));
     }
-    // نبعته من غير نوع عشان Safari القديم ما يعملش طلب إذن إضافي للخادم
     xhr.send(new Blob([f], {type: ''}));
   }
 
-  function syncTopic(role) {
-    return fetch(NTFY_SERVER + '/' + topicFor(role) + '/json?poll=1&since=12h').then(function (r) { return r.text(); }).then(function (t) {
-      t.split('\n').forEach(function (line) {
-        if (!line) return;
-        try { handleEvent(JSON.parse(line), role === 'phone' ? 'home' : 'phone', false); } catch (x) {}
-      });
-    }).catch(function () {});
-  }
-  function syncAll() { syncTopic('phone'); syncTopic('home'); }
-
-  function startChat() {
-    if (chatStarted) return; chatStarted = true;
-    loadChat(); updateUnread();
-    idbOpen().then(function () {
-      chatMsgs.forEach(function (m) { if (m.att) ensureMedia(m); });
-      syncAll();
+  // ===== الشاشة الرئيسية =====
+  function renderPeople() {
+    if (!cfg || !isHome()) return;
+    var box = $('people'), ids = Object.keys(members);
+    if (!ids.length) { box.innerHTML = '<div class="tip" style="margin-top:6px">لسه مفيش حد في القائمة. خلّي أي فرد من العيلة يفتح الرابط على موبايله، ويكتب نفس رمز العيلة واسمه.</div>'; return; }
+    ids.sort(function (a, b) { return nameOf(a) < nameOf(b) ? -1 : 1; });
+    var html = '';
+    ids.forEach(function (id) {
+      var n = unreadFor(id);
+      html += '<div class="person"><div class="nm">' + esc(nameOf(id)) + '</div>' +
+        '<button class="g" data-act="audio" data-id="' + esc(id) + '">📞</button>' +
+        '<button data-act="video" data-id="' + esc(id) + '">🎥</button>' +
+        '<button class="c" data-act="chat" data-id="' + esc(id) + '">💬' + (n ? '<span class="badge">' + n + '</span>' : '') + '</button></div>';
     });
-    if (window.EventSource) {
-      try {
-        es = new EventSource(NTFY_SERVER + '/' + topicFor(cfg.role) + '/sse');
-        es.onmessage = function (ev) { try { handleEvent(JSON.parse(ev.data), otherRole(), true); } catch (x) {} };
-        es.onerror = function () {}; // المتصفح بيعيد الاتصال لوحده
-      } catch (e) {}
-    }
-    setInterval(syncAll, 60000); // احتياطي لو الاتصال المباشر وقع
-    document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible') syncAll(); });
+    box.innerHTML = html;
   }
+  $('people').addEventListener('click', function (e) {
+    var el = e.target; while (el && el !== this && el.tagName !== 'BUTTON') el = el.parentNode;
+    if (!el || el === this) return;
+    var id = el.getAttribute('data-id'), act = el.getAttribute('data-act');
+    if (act === 'audio') makeCall('audio', id);
+    else if (act === 'video') makeCall('video', id);
+    else if (act === 'chat') openChat(id);
+  });
 
-  function openChat() {
-    $('chatTitle').textContent = roleLabel(otherRole());
-    show('chat'); renderChat(); markRead(); syncAll();
-  }
-
-  function sendChat() {
-    var ta = $('chatText'), txt = (ta.value || '').replace(/^\s+|\s+$/g, '');
-    if (!txt) return;
-    if (txt.length > 2000) txt = txt.slice(0, 2000);
-    ta.value = '';
-    var body = {topic: topicFor(otherRole()), message: txt, tags: ['chat', 'speech_balloon'], priority: 4};
-    if (otherRole() === 'phone') { body.title = 'رسالة من البيت 💬'; body.click = baseUrl() + '?chat=1'; }
-    var tmp = {id: 'tmp' + Date.now(), time: Math.floor(Date.now() / 1000), from: cfg.role, text: txt, pending: true};
-    chatIds[tmp.id] = true; chatMsgs.push(tmp); renderChat();
-    fetch(NTFY_SERVER + '/', {method: 'POST', body: JSON.stringify(body)}).then(function (r) {
-      if (!r.ok) throw new Error('http ' + r.status);
-      return r.json();
-    }).then(function (j) {
-      tmp.pending = false; delete chatIds[tmp.id];
-      if (j && j.id) { tmp.id = j.id; tmp.time = j.time || tmp.time; }
-      chatIds[tmp.id] = true; saveChat(); if (chatOpen()) renderChat();
-    }).catch(function () {
-      tmp.pending = false; tmp.failed = true; if (chatOpen()) renderChat();
-      toast('الرسالة لم تُرسل. تأكد من الإنترنت وجرّب تاني.');
-      if (!ta.value) ta.value = txt;
-    });
+  // بعد المكالمة نرجع للشات لو كنا فاتحينه، وإلا للشاشة الرئيسية
+  var returnToChat = '';
+  function rememberScreen() { returnToChat = chatOpen() ? currentChat : ''; }
+  function backHome() {
+    hideSheet();
+    var r = returnToChat; returnToChat = '';
+    if (r) openChat(r); else { currentChat = ''; show('idle'); }
+    updateUnread();
   }
 
   // ===== التشغيل =====
   function begin() {
-    var code = cfg.code;
-    myId = 'baytcall-' + code + '-' + cfg.role;
-    otherId = 'baytcall-' + code + '-' + otherRole();
-    $('meLabel').textContent = roleLabel(cfg.role);
-    $('audioCallBtn').textContent = '📞 اتصال صوتي بـ ' + roleLabel(otherRole());
-    $('videoCallBtn').textContent = '🎥 اتصال فيديو بـ ' + roleLabel(otherRole());
-    $('homeTip').style.display = cfg.role === 'home' ? 'block' : 'none';
-    $('phoneTip').style.display = cfg.role === 'phone' ? 'block' : 'none';
-    $('topicName').textContent = 'baytcall-' + code;
-    show('idle');
+    if (cfg.role === 'phone' && !cfg.mid) {
+      // إعداد قديم: نحافظ عليه زي ما هو عشان اشتراك ntfy يفضل شغال
+      cfg.mid = 'main';
+      if (!cfg.name) cfg.name = (window.prompt('اكتب اسمك (هيظهر على الـ iPad):', '') || '').slice(0, 30);
+      lsSet('bayt-call-config', cfg);
+    }
+    ME = isHome() ? 'home' : cfg.mid;
+    if (isHome()) members = lsGet('bayt-members', {});
+    $('meIco').textContent = isHome() ? '🏠' : '📱';
+    $('meLabel').textContent = isHome() ? 'البيت' : (cfg.name || 'موبايلي');
+    $('people').style.display = isHome() ? 'block' : 'none';
+    $('memberBtns').style.display = isHome() ? 'none' : 'block';
+    $('homeTip').style.display = isHome() ? 'block' : 'none';
+    $('phoneTip').style.display = isHome() ? 'none' : 'block';
+    $('topicName').textContent = inboxFor(ME);
+    show('idle'); renderPeople();
     startChat();
     var prob = supportProblem();
     if (prob) { setStatus(false, prob); if (typeof Peer === 'undefined') return; }
     startPeer();
   }
-
   function reset() {
-    if (!confirm('تغيير رمز العائلة أو نوع الجهاز؟')) return;
-    clearCfg(); location.reload();
+    if (!confirm('تغيير رمز العيلة أو نوع الجهاز؟\n(لو موبايل: هتحتاج تشترك في ntfy من جديد)')) return;
+    try { localStorage.removeItem('bayt-call-config'); } catch (e) {}
+    location.reload();
   }
+
+  var roles = document.querySelectorAll('input[name=role]');
+  for (var ri = 0; ri < roles.length; ri++) roles[ri].onchange = function () { $('nameWrap').style.display = this.value === 'phone' ? 'block' : 'none'; };
 
   $('saveBtn').onclick = function () {
     var code = ($('codeInput').value || '').toLowerCase().replace(/[^a-z0-9]/g, '');
     var r = document.querySelector('input[name=role]:checked');
+    var name = ($('nameInput').value || '').replace(/^\s+|\s+$/g, '').slice(0, 30);
     if (code.length < 6) { toast('اكتب رمزًا من 6 حروف إنجليزية/أرقام على الأقل'); return; }
     if (!r) { toast('اختر نوع هذا الجهاز'); return; }
-    cfg = {code: code, role: r.value}; saveCfg(cfg);
+    if (r.value === 'phone' && !name) { toast('اكتب اسمك'); return; }
+    cfg = {code: code, role: r.value};
+    if (r.value === 'phone') { cfg.mid = randId(); cfg.name = name; }
+    lsSet('bayt-call-config', cfg);
     unlockAudio(); begin();
   };
   $('startBtn').onclick = function () { unlockAudio(); begin(); };
   $('resetBtn1').onclick = reset; $('resetBtn2').onclick = reset;
-  $('audioCallBtn').onclick = function () { makeCall('audio'); };
-  $('videoCallBtn').onclick = function () { makeCall('video'); };
+  $('audioCallBtn').onclick = function () { makeCall('audio', 'home'); };
+  $('videoCallBtn').onclick = function () { makeCall('video', 'home'); };
+  $('chatBtn').onclick = function () { openChat('home'); };
   $('answerBtn').onclick = answer;
   $('rejectBtn').onclick = reject;
   $('hangBtn').onclick = hangUp;
   $('micBtn').onclick = toggleMic;
   $('camBtn').onclick = toggleCam;
-  $('chatBtn').onclick = openChat;
-  $('chatBack').onclick = function () { show('idle'); };
-  $('chatAudio').onclick = function () { makeCall('audio'); };
-  $('chatVideo').onclick = function () { makeCall('video'); };
+  $('chatBack').onclick = function () { currentChat = ''; show('idle'); updateUnread(); };
+  $('chatAudio').onclick = function () { makeCall('audio', currentChat); };
+  $('chatVideo').onclick = function () { makeCall('video', currentChat); };
   $('sendBtn').onclick = sendChat;
+  $('chatText').addEventListener('keydown', function (e) {
+    if (e.keyCode === 13 && !e.shiftKey && !('ontouchstart' in window)) { e.preventDefault(); sendChat(); }
+  });
   $('attBtn').onclick = function () { $('attFile').click(); };
   $('attFile').onchange = function () {
     var fs = this.files ? Array.prototype.slice.call(this.files) : [];
-    this.value = '';
-    sendFiles(fs);
+    this.value = ''; sendFiles(fs);
   };
-  $('chatText').addEventListener('keydown', function (e) {
-    // على الكمبيوتر: Enter يبعت، Shift+Enter سطر جديد
-    if (e.keyCode === 13 && !e.shiftKey && !('ontouchstart' in window)) { e.preventDefault(); sendChat(); }
-  });
-
   $('ringBtn').onclick = function () { $('ringFile').click(); };
   $('ringFile').onchange = function () {
     var f = this.files && this.files[0]; this.value = '';
@@ -973,39 +1173,26 @@ body:not(.video-call) #audioView{display:-webkit-box;display:flex}
     r.onload = function () {
       var ok = true;
       try { localStorage.setItem(RING_KEY, r.result); } catch (e) { ok = false; }
-      $('ringAudio').src = r.result;
-      $('ringReset').style.display = 'block';
+      $('ringAudio').src = r.result; $('ringReset').style.display = 'block';
       toast(ok ? 'تم حفظ الرنة ✓ اضغط "تجربة الرنة"' : 'الرنة هتشتغل لحد ما تقفل الصفحة بس (المساحة لا تكفي)');
     };
     r.readAsDataURL(f);
   };
-  $('ringTest').onclick = function () {
-    playSound('ringAudio');
-    setTimeout(function () { if (!pendingCall) stopSounds(); }, 4000);
-  };
-  $('ringReset').onclick = function () {
-    try { localStorage.removeItem(RING_KEY); } catch (e) {}
-    applyRing(); toast('رجعت الرنة الأصلية');
-  };
-
+  $('ringTest').onclick = function () { playSound('ringAudio'); setTimeout(function () { if (!pendingCall) stopSounds(); }, 4000); };
+  $('ringReset').onclick = function () { try { localStorage.removeItem(RING_KEY); } catch (e) {} applyRing(); toast('رجعت الرنة الأصلية'); };
   $('tapAudio').onclick = function () {
     var p = $('remoteVideo').play(); if (p && p.catch) p.catch(function () {});
     $('tapAudio').style.display = 'none';
   };
 
-  cfg = loadCfg();
-  if (cfg && cfg.code && cfg.role && /[?&]auto=1/.test(location.search)) {
-    // اتفتح من تنبيه المكالمة: ندخل على طول عشان المكالمة توصل
-    begin();
-  } else if (cfg && cfg.code && cfg.role && /[?&]chat=1/.test(location.search)) {
-    // اتفتح من تنبيه رسالة: نفتح الشات على طول
-    begin(); openChat();
-  } else if (cfg && cfg.code && cfg.role) {
-    $('startInfo').textContent = 'هذا الجهاز: ' + roleLabel(cfg.role) + ' — اضغط ابدأ للتشغيل';
+  cfg = lsGet('bayt-call-config', null);
+  var ok = cfg && cfg.code && cfg.role;
+  if (ok && /[?&]auto=1/.test(location.search)) begin();
+  else if (ok && /[?&]chat=1/.test(location.search)) { begin(); if (!isHome()) openChat('home'); }
+  else if (ok) {
+    $('startInfo').textContent = 'هذا الجهاز: ' + (cfg.role === 'home' ? 'البيت (الـ iPad)' : (cfg.name || 'موبايل')) + ' — اضغط ابدأ للتشغيل';
     show('start');
-  } else {
-    show('setup');
-  }
+  } else show('setup');
 })();
 </script>
 </body>
