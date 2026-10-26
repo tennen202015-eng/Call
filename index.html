@@ -69,7 +69,7 @@ body:not(.video-call) #audioView{display:-webkit-box;display:flex}
 .chat-input{display:-webkit-box;display:flex;align-items:flex-end;padding:10px;background:var(--card);border-top:1px solid var(--line)}
 .chat-input textarea{-webkit-box-flex:1;flex:1;font-size:17px;padding:10px 12px;border-radius:14px;border:1px solid var(--line);background:#0b1222;color:var(--text);font-family:inherit;resize:none;height:46px;max-height:120px}
 .chat-input button{border:0;border-radius:14px;background:var(--blue);color:#fff;font-size:16px;font-weight:600;padding:12px 18px;margin-right:8px;font-family:inherit}
-.msg img{display:block;max-width:100%;max-height:320px;border-radius:10px;margin-bottom:4px}
+.msg img{display:block;width:240px;max-width:100%;height:auto;min-height:60px;background:#0b1222;border-radius:10px;margin-bottom:4px}
 .msg video{display:block;width:260px;max-width:100%;max-height:320px;border-radius:10px;background:#000;margin-bottom:4px}
 .msg a{color:#fff;text-decoration:underline}
 .msg .gone{color:var(--muted);font-size:14px}
@@ -666,6 +666,8 @@ body:not(.video-call) #audioView{display:-webkit-box;display:flex}
 
   function idbOpen() {
     return new Promise(function (res) {
+      // بعض نسخ Safari القديمة بتعلّق هنا، فما نستناش أكتر من 3 ثواني
+      setTimeout(function () { res(idb); }, 3000);
       try {
         var rq = indexedDB.open('bayt-media', 1);
         rq.onupgradeneeded = function () { rq.result.createObjectStore('f'); };
@@ -747,15 +749,58 @@ body:not(.video-call) #audioView{display:-webkit-box;display:flex}
   function attHtml(m) {
     var a = m.att, src = mediaUrls[m.id] || (!isExpired(m) ? a.url : '');
     if (!src) return '<div class="gone">⌛ انتهت صلاحية ' + (kindOf(a.type) === 'file' ? 'الملف' : 'الملف (' + labelFor(a.type, a.name) + ')') + '</div>';
-    var k = kindOf(a.type), s = esc(src);
-    if (k === 'image') return '<a href="' + s + '" target="_blank"><img src="' + s + '" alt=""></a>';
+    var k = kindOf(a.type), s = esc(src), direct = (a.url && !isExpired(m)) ? esc(a.url) : '';
+    if (k === 'image') return '<a href="' + (direct || s) + '" target="_blank"><img src="' + s + '" data-alt="' + direct + '" alt="📷" onerror="bcImgErr(this)"></a>';
     if (k === 'video') return '<video src="' + s + '" controls playsinline preload="metadata"></video>';
     if (k === 'audio') return '<audio src="' + s + '" controls style="max-width:240px"></audio>';
     return '<a href="' + s + '" target="_blank" download="' + esc(a.name || 'file') + '">📎 ' + esc(a.name || 'ملف') + '</a> <span class="t" style="display:inline">' + fmtSize(a.size) + '</span>';
   }
 
+  // لو الصورة ما اتعرضتش: نجرب الرابط المباشر، ولو فشل نعرض زر لفتحها
+  window.bcImgErr = function (el) {
+    var alt = el.getAttribute('data-alt');
+    if (alt && el.src !== alt && !el.getAttribute('data-tried')) { el.setAttribute('data-tried', '1'); el.src = alt; return; }
+    var link = alt || el.src;
+    var div = document.createElement('div');
+    div.innerHTML = '<a href="' + esc(link) + '" target="_blank">⚠️ تعذّر عرض الصورة — اضغط لفتحها</a>';
+    var a = el.parentNode; if (a && a.parentNode) a.parentNode.replaceChild(div, a);
+  };
+
+  // تصغير الصور الكبيرة قبل الإرسال (على المتصفحات اللي بتظبط اتجاه الصورة لوحدها، زي Chrome أندرويد)
+  function canAutoOrient() {
+    try { return !!(window.CSS && CSS.supports && CSS.supports('image-orientation', 'from-image')); } catch (e) { return false; }
+  }
+  function prepareFile(f) {
+    return new Promise(function (res) {
+      if (kindOf(f.type) !== 'image' || f.type === 'image/gif' || f.size < 700 * 1024 || !canAutoOrient()) return res(f);
+      var url = URL.createObjectURL(f), img = new Image();
+      img.onload = function () {
+        try {
+          var max = 1600, w = img.naturalWidth, h = img.naturalHeight, sc = Math.min(1, max / Math.max(w, h));
+          var c = document.createElement('canvas'); c.width = Math.round(w * sc); c.height = Math.round(h * sc);
+          c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+          URL.revokeObjectURL(url);
+          if (!c.toBlob) return res(f);
+          c.toBlob(function (b) {
+            if (!b || b.size >= f.size) return res(f);
+            try { b.name = (f.name || 'photo').replace(/\.[^.]+$/, '') + '.jpg'; } catch (e) {}
+            res(b);
+          }, 'image/jpeg', 0.85);
+        } catch (e) { res(f); }
+      };
+      img.onerror = function () { URL.revokeObjectURL(url); res(f); };
+      img.src = url;
+    });
+  }
+
   function sendFiles(files) {
-    for (var i = 0; i < files.length; i++) uploadFile(files[i]);
+    files.forEach(function (f) {
+      var origName = f.name;
+      prepareFile(f).then(function (p) {
+        if (p !== f) p.name = (origName || 'photo').replace(/\.[^.]+$/, '') + '.jpg';
+        uploadFile(p);
+      });
+    });
   }
 
   function uploadFile(f) {
