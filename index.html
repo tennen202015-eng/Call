@@ -69,6 +69,11 @@ body:not(.video-call) #audioView{display:-webkit-box;display:flex}
 .chat-input{display:-webkit-box;display:flex;align-items:flex-end;padding:10px;background:var(--card);border-top:1px solid var(--line)}
 .chat-input textarea{-webkit-box-flex:1;flex:1;font-size:17px;padding:10px 12px;border-radius:14px;border:1px solid var(--line);background:#0b1222;color:var(--text);font-family:inherit;resize:none;height:46px;max-height:120px}
 .chat-input button{border:0;border-radius:14px;background:var(--blue);color:#fff;font-size:16px;font-weight:600;padding:12px 18px;margin-right:8px;font-family:inherit}
+.msg img{display:block;max-width:100%;max-height:320px;border-radius:10px;margin-bottom:4px}
+.msg video{display:block;width:260px;max-width:100%;max-height:320px;border-radius:10px;background:#000;margin-bottom:4px}
+.msg a{color:#fff;text-decoration:underline}
+.msg .gone{color:var(--muted);font-size:14px}
+#attBtn{background:none;border:0;font-size:26px;padding:6px 4px;margin-left:6px}
 .chat-note{font-size:12px;color:var(--muted);text-align:center;padding:6px 16px 0}
 </style>
 </head>
@@ -134,6 +139,8 @@ body:not(.video-call) #audioView{display:-webkit-box;display:flex}
   </div>
   <div id="msgs"></div>
   <div class="chat-input">
+    <button id="attBtn" title="إرفاق صورة أو فيديو أو ملف">📎</button>
+    <input type="file" id="attFile" multiple style="display:none">
     <textarea id="chatText" placeholder="اكتب رسالة..."></textarea>
     <button id="sendBtn">إرسال</button>
   </div>
@@ -596,6 +603,7 @@ body:not(.video-call) #audioView{display:-webkit-box;display:flex}
     chatIds[m.id] = true; chatMsgs.push(m);
     chatMsgs.sort(function (a, b) { return a.time - b.time; });
     saveChat();
+    if (m.att) ensureMedia(m);
     if (m.from !== cfg.role && live) {
       if (chatOpen() && document.visibilityState === 'visible') markRead();
       else {
@@ -623,10 +631,22 @@ body:not(.video-call) #audioView{display:-webkit-box;display:flex}
 
   function renderChat() {
     var box = $('msgs'), html = '';
+    // ما نقطعش فيديو شغّال: نأجل التحديث لحد ما يقف
+    var vids = box.getElementsByTagName('video');
+    for (var vi = 0; vi < vids.length; vi++) {
+      if (!vids[vi].paused && !vids[vi].ended) {
+        vids[vi].onpause = vids[vi].onended = function () { setTimeout(renderChat, 50); };
+        return;
+      }
+    }
     chatMsgs.forEach(function (m) {
-      var me = m.from === cfg.role;
-      html += '<div class="mrow ' + (me ? 'me' : 'them') + '"><div class="msg">' + esc(m.text) +
-        '<span class="t">' + fmtTime(m.time) + (m.pending ? ' ⏳' : '') + (m.failed ? ' ⚠️ لم تُرسل' : '') + '</span></div></div>';
+      var me = m.from === cfg.role, body;
+      if (m.att) body = attHtml(m);
+      else body = esc(m.text);
+      html += '<div class="mrow ' + (me ? 'me' : 'them') + '"><div class="msg">' + body +
+        '<span class="t">' + fmtTime(m.time) +
+        (m.pending ? ' ⏳' + (m.att && m.progress ? ' ' + m.progress + '%' : '') : '') +
+        (m.failed ? ' ⚠️ لم تُرسل' : '') + '</span></div></div>';
     });
     if (!chatMsgs.length) html = '<p style="text-align:center;margin:40px auto">لا توجد رسائل بعد. اكتب أول رسالة 👋</p>';
     html += '<div class="chat-note">الرسائل محفوظة على هذا الجهاز</div>';
@@ -637,7 +657,147 @@ body:not(.video-call) #audioView{display:-webkit-box;display:flex}
   // أحداث ntfy: ناخد بس الرسائل اللي عليها علامة chat (مش تنبيهات المكالمات)
   function handleEvent(e, fromRole, live) {
     if (!e || e.event !== 'message' || !e.tags || e.tags.indexOf('chat') < 0) return;
-    addMsg({id: e.id, time: e.time, from: fromRole, text: e.message || ''}, live);
+    addMsg({id: e.id, time: e.time, from: fromRole, text: e.message || '', att: e.attachment || null}, live);
+  }
+
+  // ===== الصور والفيديو والملفات =====
+  var MAX_FILE = 15 * 1024 * 1024; // حد خادم ntfy المجاني
+  var idb = null, mediaUrls = {}, downloading = {};
+
+  function idbOpen() {
+    return new Promise(function (res) {
+      try {
+        var rq = indexedDB.open('bayt-media', 1);
+        rq.onupgradeneeded = function () { rq.result.createObjectStore('f'); };
+        rq.onsuccess = function () { idb = rq.result; res(idb); };
+        rq.onerror = function () { res(null); };
+      } catch (e) { res(null); }
+    });
+  }
+  function idbPut(key, val) {
+    return new Promise(function (res) {
+      if (!idb) return res(false);
+      try {
+        var tx = idb.transaction('f', 'readwrite');
+        tx.objectStore('f').put(val, key);
+        tx.oncomplete = function () { res(true); };
+        tx.onerror = tx.onabort = function () { res(false); };
+      } catch (e) { res(false); }
+    });
+  }
+  function idbGet(key) {
+    return new Promise(function (res) {
+      if (!idb) return res(null);
+      try {
+        var rq = idb.transaction('f', 'readonly').objectStore('f').get(key);
+        rq.onsuccess = function () { res(rq.result || null); };
+        rq.onerror = function () { res(null); };
+      } catch (e) { res(null); }
+    });
+  }
+  // Safari 12 ما فيهوش blob.arrayBuffer()
+  function readBuf(blob) {
+    return new Promise(function (res, rej) {
+      var r = new FileReader();
+      r.onload = function () { res(r.result); };
+      r.onerror = function () { rej(r.error); };
+      r.readAsArrayBuffer(blob);
+    });
+  }
+  function fmtSize(n) {
+    if (!n) return '';
+    if (n < 1024 * 1024) return Math.round(n / 1024) + ' KB';
+    return (n / 1024 / 1024).toFixed(1) + ' MB';
+  }
+  function kindOf(type) {
+    type = type || '';
+    if (type.indexOf('image/') === 0) return 'image';
+    if (type.indexOf('video/') === 0) return 'video';
+    if (type.indexOf('audio/') === 0) return 'audio';
+    return 'file';
+  }
+  function labelFor(type, name) {
+    var k = kindOf(type);
+    if (k === 'image') return '📷 صورة';
+    if (k === 'video') return '🎥 فيديو';
+    if (k === 'audio') return '🎤 ملف صوتي';
+    return '📎 ملف: ' + name;
+  }
+  function isExpired(m) { return m.att && m.att.expires && m.att.expires * 1000 < Date.now(); }
+
+  // نحفظ أي ملف يوصل على الجهاز فورًا، لأن الخادم بيمسحه بعد 3 ساعات
+  function ensureMedia(m) {
+    if (!m.att || mediaUrls[m.id] || downloading[m.id]) return;
+    downloading[m.id] = true;
+    idbGet(m.id).then(function (v) {
+      if (v && v.buf) {
+        mediaUrls[m.id] = URL.createObjectURL(new Blob([v.buf], {type: v.type || m.att.type || ''}));
+        if (chatOpen()) renderChat();
+        return;
+      }
+      if (!m.att.url || isExpired(m)) return;
+      return fetch(m.att.url).then(function (r) { if (!r.ok) throw new Error('dl'); return r.arrayBuffer(); }).then(function (buf) {
+        idbPut(m.id, {buf: buf, type: m.att.type || ''});
+        mediaUrls[m.id] = URL.createObjectURL(new Blob([buf], {type: m.att.type || ''}));
+        if (chatOpen()) renderChat();
+      });
+    }).catch(function () {}).then(function () { downloading[m.id] = false; });
+  }
+
+  function attHtml(m) {
+    var a = m.att, src = mediaUrls[m.id] || (!isExpired(m) ? a.url : '');
+    if (!src) return '<div class="gone">⌛ انتهت صلاحية ' + (kindOf(a.type) === 'file' ? 'الملف' : 'الملف (' + labelFor(a.type, a.name) + ')') + '</div>';
+    var k = kindOf(a.type), s = esc(src);
+    if (k === 'image') return '<a href="' + s + '" target="_blank"><img src="' + s + '" alt=""></a>';
+    if (k === 'video') return '<video src="' + s + '" controls playsinline preload="metadata"></video>';
+    if (k === 'audio') return '<audio src="' + s + '" controls style="max-width:240px"></audio>';
+    return '<a href="' + s + '" target="_blank" download="' + esc(a.name || 'file') + '">📎 ' + esc(a.name || 'ملف') + '</a> <span class="t" style="display:inline">' + fmtSize(a.size) + '</span>';
+  }
+
+  function sendFiles(files) {
+    for (var i = 0; i < files.length; i++) uploadFile(files[i]);
+  }
+
+  function uploadFile(f) {
+    if (f.size > MAX_FILE) { toast('الملف "' + f.name + '" حجمه ' + fmtSize(f.size) + '، والحد 15 ميجا. ' + (kindOf(f.type) === 'video' ? 'جرّب فيديو أقصر.' : '')); return; }
+    var name = f.name || ('file-' + Date.now());
+    var label = labelFor(f.type, name);
+    var tmp = {id: 'tmp' + Date.now() + Math.random(), time: Math.floor(Date.now() / 1000), from: cfg.role, text: label,
+      att: {name: name, type: f.type, size: f.size}, pending: true, progress: 0};
+    mediaUrls[tmp.id] = URL.createObjectURL(f);
+    chatIds[tmp.id] = true; chatMsgs.push(tmp); renderChat();
+
+    var qs = 'filename=' + encodeURIComponent(name) + '&message=' + encodeURIComponent(label) +
+      '&tags=chat,speech_balloon&priority=4';
+    if (otherRole() === 'phone') qs += '&title=' + encodeURIComponent('رسالة من البيت 💬') + '&click=' + encodeURIComponent(baseUrl() + '?chat=1');
+
+    var xhr = new XMLHttpRequest(), lastPaint = 0;
+    xhr.open('POST', NTFY_SERVER + '/' + topicFor(otherRole()) + '?' + qs);
+    xhr.upload.onprogress = function (ev) {
+      if (!ev.lengthComputable) return;
+      tmp.progress = Math.round(ev.loaded / ev.total * 100);
+      if (Date.now() - lastPaint > 400) { lastPaint = Date.now(); if (chatOpen()) renderChat(); }
+    };
+    xhr.onload = function () {
+      var j = null; try { j = JSON.parse(xhr.responseText); } catch (e) {}
+      if (xhr.status >= 200 && xhr.status < 300 && j && j.id) {
+        var oldId = tmp.id;
+        tmp.pending = false; delete chatIds[oldId];
+        tmp.id = j.id; tmp.time = j.time || tmp.time;
+        if (j.attachment) tmp.att = j.attachment;
+        chatIds[tmp.id] = true;
+        mediaUrls[tmp.id] = mediaUrls[oldId];
+        readBuf(f).then(function (buf) { idbPut(tmp.id, {buf: buf, type: f.type || ''}); }).catch(function () {});
+        saveChat(); if (chatOpen()) renderChat();
+      } else fail(xhr.status === 413 ? 'الملف أكبر من المسموح' : (xhr.status === 429 ? 'وصلت لحد الإرسال المجاني، جرّب بعد شوية' : ''));
+    };
+    xhr.onerror = function () { fail(''); };
+    function fail(why) {
+      tmp.pending = false; tmp.failed = true; if (chatOpen()) renderChat();
+      toast('الملف لم يُرسل. ' + (why || 'تأكد من الإنترنت وجرّب تاني.'));
+    }
+    // نبعته من غير نوع عشان Safari القديم ما يعملش طلب إذن إضافي للخادم
+    xhr.send(new Blob([f], {type: ''}));
   }
 
   function syncTopic(role) {
@@ -652,7 +812,11 @@ body:not(.video-call) #audioView{display:-webkit-box;display:flex}
 
   function startChat() {
     if (chatStarted) return; chatStarted = true;
-    loadChat(); updateUnread(); syncAll();
+    loadChat(); updateUnread();
+    idbOpen().then(function () {
+      chatMsgs.forEach(function (m) { if (m.att) ensureMedia(m); });
+      syncAll();
+    });
     if (window.EventSource) {
       try {
         es = new EventSource(NTFY_SERVER + '/' + topicFor(cfg.role) + '/sse');
@@ -737,6 +901,12 @@ body:not(.video-call) #audioView{display:-webkit-box;display:flex}
   $('chatAudio').onclick = function () { makeCall('audio'); };
   $('chatVideo').onclick = function () { makeCall('video'); };
   $('sendBtn').onclick = sendChat;
+  $('attBtn').onclick = function () { $('attFile').click(); };
+  $('attFile').onchange = function () {
+    var fs = this.files ? Array.prototype.slice.call(this.files) : [];
+    this.value = '';
+    sendFiles(fs);
+  };
   $('chatText').addEventListener('keydown', function (e) {
     // على الكمبيوتر: Enter يبعت، Shift+Enter سطر جديد
     if (e.keyCode === 13 && !e.shiftKey && !('ontouchstart' in window)) { e.preventDefault(); sendChat(); }
