@@ -1,0 +1,509 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>مكالمات البيت</title>
+<style>
+:root{--bg:#0f172a;--card:#1e293b;--line:#334155;--text:#f1f5f9;--muted:#94a3b8;--green:#22c55e;--red:#ef4444;--blue:#3b82f6;}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font-family:-apple-system,"Segoe UI",Tahoma,Arial,sans-serif;overflow-x:hidden}
+.screen{display:none;min-height:100%;padding:28px 16px;-webkit-box-orient:vertical;flex-direction:column;align-items:center;justify-content:center;text-align:center}
+.screen.active{display:-webkit-box;display:flex}
+h1{font-size:26px;margin:0 0 8px}
+p{color:var(--muted);line-height:1.7;margin:6px 0;max-width:460px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:20px;width:100%;max-width:440px;margin-top:16px;text-align:right}
+label{display:block;font-size:15px;margin:12px 0 6px}
+input[type=text]{width:100%;font-size:18px;padding:12px;border-radius:12px;border:1px solid var(--line);background:#0b1222;color:var(--text);direction:ltr;text-align:left}
+.role{display:block;padding:14px;border:1px solid var(--line);border-radius:12px;margin-top:10px;font-size:16px}
+.role input{margin-left:8px}
+.btn{display:block;width:100%;max-width:440px;border:0;border-radius:14px;padding:16px;font-size:19px;font-weight:600;color:#fff;background:var(--blue);margin-top:14px;font-family:inherit}
+.btn.green{background:var(--green)}
+.btn.red{background:var(--red)}
+.btn.ghost{background:transparent;border:1px solid var(--line);color:var(--muted);font-size:15px;padding:12px}
+.status{display:inline-block;padding:8px 14px;border-radius:999px;background:var(--card);border:1px solid var(--line);font-size:15px;margin:10px 0}
+.dot{display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--red);margin-left:8px;vertical-align:middle}
+.dot.on{background:var(--green)}
+.big-ico{font-size:72px;margin-bottom:8px}
+.pulse{-webkit-animation:pulse 1.2s infinite;animation:pulse 1.2s infinite}
+@-webkit-keyframes pulse{0%,100%{-webkit-transform:scale(1)}50%{-webkit-transform:scale(1.12)}}
+@keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.12)}}
+.row{display:-webkit-box;display:flex;justify-content:center;width:100%;max-width:440px}
+.row .btn{margin:14px 6px 0}
+/* in-call */
+#incall{padding:0;justify-content:flex-start;background:#000}
+#remoteVideo{position:fixed;top:0;left:0;width:100%;height:100%;object-fit:cover;background:#000}
+#localVideo{position:fixed;top:16px;left:16px;width:28%;max-width:180px;border-radius:12px;border:2px solid rgba(255,255,255,.6);-webkit-transform:scaleX(-1);transform:scaleX(-1);background:#111;z-index:3}
+body:not(.video-call) #remoteVideo{width:1px;height:1px;opacity:0}
+body:not(.video-call) #localVideo{display:none}
+#audioView{position:fixed;top:0;left:0;right:0;bottom:0;display:none;-webkit-box-orient:vertical;flex-direction:column;align-items:center;justify-content:center;background:var(--bg);z-index:1}
+body:not(.video-call) #audioView{display:-webkit-box;display:flex}
+#callInfo{position:fixed;top:16px;right:16px;z-index:4;text-align:right;text-shadow:0 1px 4px #000}
+#callStatus{font-size:18px;font-weight:600}
+#callTime{font-size:16px;color:#e2e8f0;margin-top:4px}
+#controls{position:fixed;left:0;right:0;bottom:28px;z-index:5;text-align:center}
+.cbtn{display:inline-block;width:68px;height:68px;border-radius:50%;border:0;font-size:28px;margin:0 10px;background:rgba(255,255,255,.18);color:#fff}
+.cbtn.off{background:#fff;color:#111}
+.cbtn.end{background:var(--red)}
+#tapAudio{display:none;position:fixed;top:45%;left:16px;right:16px;z-index:6}
+#toast{position:fixed;left:16px;right:16px;bottom:120px;z-index:20;background:#111827;border:1px solid var(--line);color:#fff;padding:14px;border-radius:12px;text-align:center;font-size:16px;display:none}
+#err{position:fixed;left:8px;right:8px;bottom:4px;z-index:30;color:#fca5a5;font-size:12px;direction:ltr;text-align:left;white-space:pre-wrap}
+.tip{font-size:14px;color:var(--muted);background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;margin-top:22px;max-width:440px;text-align:right;line-height:1.8}
+</style>
+</head>
+<body>
+
+<!-- إعداد أول مرة -->
+<section id="setup" class="screen">
+  <div class="big-ico">📞</div>
+  <h1>مكالمات البيت</h1>
+  <p>اختر رمزًا خاصًا بعائلتكم، واكتبه نفسه على الجهازين.</p>
+  <div class="card">
+    <label for="codeInput">رمز العائلة (حروف إنجليزية وأرقام، 6 على الأقل)</label>
+    <input type="text" id="codeInput" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="مثال: ahmed2026home">
+    <label>هذا الجهاز هو:</label>
+    <label class="role"><input type="radio" name="role" value="home"> الـ iPad (في البيت)</label>
+    <label class="role"><input type="radio" name="role" value="phone"> موبايلي</label>
+  </div>
+  <button class="btn" id="saveBtn">حفظ وبدء</button>
+</section>
+
+<!-- شاشة البدء (لازم ضغطة لتفعيل الصوت في iOS) -->
+<section id="start" class="screen">
+  <div class="big-ico">📞</div>
+  <h1>مكالمات البيت</h1>
+  <p id="startInfo"></p>
+  <button class="btn green" id="startBtn">ابدأ</button>
+  <button class="btn ghost" id="resetBtn1">تغيير الإعدادات</button>
+</section>
+
+<!-- الانتظار -->
+<section id="idle" class="screen">
+  <div class="big-ico">🏠</div>
+  <h1 id="meLabel"></h1>
+  <div class="status"><span class="dot" id="dot"></span><span id="statusText">جارٍ الاتصال بالخادم...</span></div>
+  <button class="btn green" id="audioCallBtn">📞 مكالمة صوتية</button>
+  <button class="btn" id="videoCallBtn">🎥 مكالمة فيديو</button>
+  <div class="tip" id="homeTip" style="display:none">
+    اترك هذه الصفحة مفتوحة والـ iPad على الشاحن حتى تصلك المكالمات.<br>
+    فعّل: الإعدادات ← الشاشة والسطوع ← القفل التلقائي ← أبدًا.<br>
+    وتأكد أن صوت الجهاز مرتفع.
+  </div>
+  <button class="btn ghost" id="resetBtn2">تغيير الإعدادات</button>
+</section>
+
+<!-- مكالمة واردة -->
+<section id="incoming" class="screen">
+  <div class="big-ico pulse" id="inIco">📞</div>
+  <h1 id="inTitle">مكالمة واردة</h1>
+  <p id="inFrom"></p>
+  <div class="row">
+    <button class="btn red" id="rejectBtn">رفض</button>
+    <button class="btn green" id="answerBtn">رد</button>
+  </div>
+</section>
+
+<!-- أثناء المكالمة -->
+<section id="incall" class="screen">
+  <video id="remoteVideo" autoplay playsinline></video>
+  <video id="localVideo" autoplay playsinline muted></video>
+  <div id="audioView">
+    <div class="big-ico" id="audioIco">📞</div>
+    <h1 id="audioName"></h1>
+  </div>
+  <div id="callInfo">
+    <div id="callStatus"></div>
+    <div id="callTime"></div>
+  </div>
+  <button class="btn green" id="tapAudio">اضغط لتشغيل الصوت</button>
+  <div id="controls">
+    <button class="cbtn" id="micBtn" title="المايك">🎙️</button>
+    <button class="cbtn" id="camBtn" title="الكاميرا">📷</button>
+    <button class="cbtn end" id="hangBtn" title="إنهاء">✖</button>
+  </div>
+</section>
+
+<div id="toast"></div>
+<div id="err"></div>
+
+<audio id="ringAudio" loop preload="auto"></audio>
+<audio id="backAudio" loop preload="auto"></audio>
+
+<script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
+<script>
+(function () {
+  // ===== إعدادات الشبكة =====
+  // خوادم STUN مجانية. لو المكالمة "تتصل ولا يظهر صوت/صورة" أضف خادم TURN هنا.
+  // مثال (من حساب مجاني على metered.ca):
+  // {urls: 'turn:global.relay.metered.ca:80', username: 'USER', credential: 'PASS'},
+  // {urls: 'turn:global.relay.metered.ca:443?transport=tcp', username: 'USER', credential: 'PASS'}
+  var ICE_SERVERS = [
+    {urls: 'stun:stun.l.google.com:19302'},
+    {urls: 'stun:stun1.l.google.com:19302'}
+  ];
+
+  var LS_KEY = 'bayt-call-config';
+  var cfg = null, peer = null, peerOpen = false, myId = '', otherId = '';
+  var mediaCall = null, dataConn = null, pendingCall = null, localStream = null;
+  var callType = 'audio', inCall = false, connected = false, isCaller = false;
+  var timerInt = null, callStart = 0, outgoingTimeout = null, incomingTimeout = null;
+  var micOn = true, camOn = true, toastT = null, vibInt = null;
+
+  function $(id) { return document.getElementById(id); }
+
+  // عرض الأخطاء على الشاشة (مفيد لأن Safari القديم ما فيه Console سهل)
+  window.onerror = function (msg, src, line) {
+    $('err').textContent = 'Error: ' + msg + ' (' + line + ')';
+  };
+
+  function loadCfg() { try { var s = localStorage.getItem(LS_KEY); return s ? JSON.parse(s) : null; } catch (e) { return null; } }
+  function saveCfg(c) { try { localStorage.setItem(LS_KEY, JSON.stringify(c)); } catch (e) {} }
+  function clearCfg() { try { localStorage.removeItem(LS_KEY); } catch (e) {} }
+
+  function show(id) {
+    var s = document.querySelectorAll('.screen');
+    for (var i = 0; i < s.length; i++) s[i].classList.remove('active');
+    $(id).classList.add('active');
+  }
+  function toast(msg) {
+    var t = $('toast'); t.textContent = msg; t.style.display = 'block';
+    clearTimeout(toastT); toastT = setTimeout(function () { t.style.display = 'none'; }, 4000);
+  }
+  function roleLabel(r) { return r === 'home' ? 'الـ iPad (البيت)' : 'الموبايل'; }
+  function otherRole() { return cfg.role === 'home' ? 'phone' : 'home'; }
+
+  // ===== أصوات الرنين (ملفات WAV تتولد هنا، وتشتغل حتى لو زر الصامت شغال غالبًا) =====
+  function makeWav(segs) {
+    var rate = 16000, total = 0, i;
+    for (i = 0; i < segs.length; i++) total += Math.floor(segs[i][1] * rate);
+    var buf = new ArrayBuffer(44 + total * 2), v = new DataView(buf);
+    function ws(o, s) { for (var k = 0; k < s.length; k++) v.setUint8(o + k, s.charCodeAt(k)); }
+    ws(0, 'RIFF'); v.setUint32(4, 36 + total * 2, true); ws(8, 'WAVE'); ws(12, 'fmt ');
+    v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
+    v.setUint32(24, rate, true); v.setUint32(28, rate * 2, true); v.setUint16(32, 2, true); v.setUint16(34, 16, true);
+    ws(36, 'data'); v.setUint32(40, total * 2, true);
+    var o = 44;
+    for (i = 0; i < segs.length; i++) {
+      var f1 = segs[i][0], dur = segs[i][1], f2 = segs[i][2] || 0, n = Math.floor(dur * rate);
+      for (var j = 0; j < n; j++) {
+        var s = 0;
+        if (f1) {
+          var env = Math.min(1, j / 300, (n - j) / 300);
+          s = (Math.sin(2 * Math.PI * f1 * j / rate) * 0.5 + (f2 ? Math.sin(2 * Math.PI * f2 * j / rate) * 0.3 : 0)) * env;
+        }
+        v.setInt16(o, Math.max(-1, Math.min(1, s)) * 26000, true); o += 2;
+      }
+    }
+    return URL.createObjectURL(new Blob([buf], {type: 'audio/wav'}));
+  }
+  $('ringAudio').src = makeWav([[0, 0.3], [880, 0.4, 1320], [0, 0.15], [880, 0.4, 1320], [0, 1.4]]);
+  $('backAudio').src = makeWav([[0, 0.3], [425, 1.0], [0, 2.5]]);
+
+  // iOS يسمح بتشغيل الصوت لاحقًا فقط لو اشتغل مرة بعد ضغطة من المستخدم
+  function unlockAudio() {
+    ['ringAudio', 'backAudio'].forEach(function (id) {
+      var a = $(id);
+      try {
+        var p = a.play();
+        if (p && p.then) p.then(function () { a.pause(); a.currentTime = 0; }).catch(function () {});
+        else { a.pause(); a.currentTime = 0; }
+      } catch (e) {}
+    });
+  }
+  function playSound(id) {
+    stopSounds();
+    var a = $(id); a.currentTime = 0;
+    try { var p = a.play(); if (p && p.catch) p.catch(function () {}); } catch (e) {}
+    if (id === 'ringAudio' && navigator.vibrate) {
+      navigator.vibrate([400, 200, 400]);
+      vibInt = setInterval(function () { navigator.vibrate([400, 200, 400]); }, 2500);
+    }
+  }
+  function stopSounds() {
+    ['ringAudio', 'backAudio'].forEach(function (id) { try { $(id).pause(); } catch (e) {} });
+    clearInterval(vibInt); if (navigator.vibrate) navigator.vibrate(0);
+  }
+
+  // ===== فحص دعم المتصفح =====
+  function supportProblem() {
+    if (typeof Peer === 'undefined') return 'تعذّر تحميل مكتبة الاتصال. تأكد من الإنترنت ثم أعد تحميل الصفحة.';
+    if (location.protocol !== 'https:' && location.hostname !== 'localhost') return 'لازم تفتح الصفحة برابط https.';
+    if (window.navigator.standalone) return 'افتح الصفحة من Safari مباشرة، وليس من أيقونة الشاشة الرئيسية (iOS 12 لا يسمح بالكاميرا هناك).';
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || !window.RTCPeerConnection) return 'هذا المتصفح لا يدعم المكالمات. استخدم Safari على الـ iPad وChrome على أندرويد.';
+    return '';
+  }
+
+  // ===== الاتصال بخادم الإشارة =====
+  function setStatus(on, txt) {
+    peerOpen = on;
+    $('dot').className = on ? 'dot on' : 'dot';
+    $('statusText').textContent = txt || (on ? 'متصل وجاهز' : 'جارٍ الاتصال بالخادم...');
+  }
+
+  function startPeer() {
+    if (peer && !peer.destroyed) { try { peer.destroy(); } catch (e) {} }
+    setStatus(false);
+    peer = new Peer(myId, {config: {iceServers: ICE_SERVERS}, debug: 1});
+    peer.on('open', function () { setStatus(true); });
+    peer.on('disconnected', function () {
+      setStatus(false);
+      setTimeout(function () { if (peer && !peer.destroyed && peer.disconnected) { try { peer.reconnect(); } catch (e) {} } }, 2000);
+    });
+    peer.on('close', function () { setStatus(false); });
+    peer.on('error', function (err) {
+      var t = err && err.type;
+      if (t === 'peer-unavailable') {
+        if (inCall && isCaller) endCall(roleLabel(otherRole()) + ' غير متصل الآن. تأكد أن الصفحة مفتوحة عليه.');
+      } else if (t === 'unavailable-id') {
+        setStatus(false, 'الجهاز يُعاد ربطه... انتظر لحظات');
+        try { peer.destroy(); } catch (e) {}
+        setTimeout(startPeer, 6000);
+      } else if (t === 'network' || t === 'server-error' || t === 'socket-error' || t === 'socket-closed') {
+        setStatus(false, 'مشكلة في الشبكة... إعادة المحاولة');
+        setTimeout(function () { if (!peer || peer.destroyed) startPeer(); else if (peer.disconnected) { try { peer.reconnect(); } catch (e) { startPeer(); } } }, 4000);
+      } else if (t === 'browser-incompatible') {
+        setStatus(false, 'المتصفح غير مدعوم');
+      }
+    });
+    peer.on('call', onIncomingCall);
+    peer.on('connection', onDataConnection);
+  }
+
+  // إعادة الربط لما ترجع للصفحة أو كل 10 ثواني لو انقطع
+  setInterval(function () {
+    if (!peer) return;
+    if (peer.destroyed) startPeer();
+    else if (peer.disconnected) { try { peer.reconnect(); } catch (e) {} }
+  }, 10000);
+  document.addEventListener('visibilitychange', function () {
+    if (document.visibilityState === 'visible' && peer) {
+      if (peer.destroyed) startPeer();
+      else if (peer.disconnected) { try { peer.reconnect(); } catch (e) {} }
+    }
+  });
+
+  // ===== رسائل التحكم (رفض / إنهاء / إلغاء) =====
+  function send(m) { try { if (dataConn && dataConn.open) dataConn.send(m); } catch (e) {} }
+
+  function onDataConnection(conn) {
+    if (inCall || pendingCall) {
+      conn.on('open', function () { try { conn.send({t: 'busy'}); } catch (e) {} setTimeout(function () { try { conn.close(); } catch (e) {} }, 800); });
+      return;
+    }
+    dataConn = conn;
+    conn.on('data', onMsg);
+  }
+
+  function onMsg(m) {
+    if (!m || !m.t) return;
+    if (m.t === 'cancel') {
+      if (pendingCall) { closePending(); toast('فاتتك مكالمة من ' + roleLabel(otherRole())); }
+      else if (inCall) endCall('انتهت المكالمة');
+    } else if (m.t === 'reject') endCall('تم رفض المكالمة');
+    else if (m.t === 'hangup') endCall('انتهت المكالمة');
+    else if (m.t === 'busy') endCall('الطرف الآخر في مكالمة الآن');
+  }
+
+  // ===== الكاميرا والمايك =====
+  function getMedia(type) {
+    return navigator.mediaDevices.getUserMedia({
+      audio: {echoCancellation: true, noiseSuppression: true},
+      video: type === 'video' ? {facingMode: 'user', width: {ideal: 640}, height: {ideal: 480}} : false
+    });
+  }
+
+  // ===== مكالمة صادرة =====
+  function makeCall(type) {
+    var prob = supportProblem(); if (prob) { toast(prob); return; }
+    if (!peerOpen) { toast('لسه بيتصل بالخادم، جرّب بعد ثواني'); return; }
+    if (inCall || pendingCall) return;
+    callType = type; isCaller = true; inCall = true; connected = false;
+    enterCallUI('جارٍ الاتصال بـ ' + roleLabel(otherRole()) + '...');
+    getMedia(type).then(function (stream) {
+      if (!inCall) { stream.getTracks().forEach(function (t) { t.stop(); }); return; }
+      localStream = stream; attachLocal();
+      dataConn = peer.connect(otherId, {serialization: 'json', reliable: true});
+      dataConn.on('data', onMsg);
+      var call = peer.call(otherId, stream, {metadata: {type: type}});
+      if (!call) { endCall('تعذّر بدء المكالمة'); return; }
+      mediaCall = call; setupMediaCall(call);
+      playSound('backAudio');
+      outgoingTimeout = setTimeout(function () { if (inCall && !connected) { send({t: 'cancel'}); endCall('لم يتم الرد'); } }, 45000);
+    }).catch(function () {
+      endCall('لازم تسمح بالوصول للمايك' + (type === 'video' ? ' والكاميرا' : ''));
+    });
+  }
+
+  // ===== مكالمة واردة =====
+  function onIncomingCall(call) {
+    if (inCall || pendingCall) { try { call.close(); } catch (e) {} return; }
+    pendingCall = call;
+    callType = (call.metadata && call.metadata.type === 'video') ? 'video' : 'audio';
+    $('inIco').textContent = callType === 'video' ? '🎥' : '📞';
+    $('inTitle').textContent = callType === 'video' ? 'مكالمة فيديو واردة' : 'مكالمة صوتية واردة';
+    $('inFrom').textContent = 'من ' + roleLabel(otherRole());
+    show('incoming'); playSound('ringAudio');
+    clearTimeout(incomingTimeout);
+    incomingTimeout = setTimeout(function () { if (pendingCall === call) { send({t: 'reject'}); closePending(); toast('فاتتك مكالمة'); } }, 60000);
+  }
+
+  function closePending() {
+    clearTimeout(incomingTimeout); stopSounds();
+    var c = pendingCall; pendingCall = null;
+    if (c) { try { c.close(); } catch (e) {} }
+    var d = dataConn; dataConn = null;
+    if (d) setTimeout(function () { try { d.close(); } catch (e) {} }, 500);
+    show('idle');
+  }
+
+  function answer() {
+    var call = pendingCall; if (!call) return;
+    clearTimeout(incomingTimeout); stopSounds();
+    var prob = supportProblem(); if (prob) { toast(prob); send({t: 'reject'}); closePending(); return; }
+    pendingCall = null; isCaller = false; inCall = true; connected = false;
+    enterCallUI('جارٍ الربط...');
+    getMedia(callType).then(function (stream) {
+      if (!inCall) { stream.getTracks().forEach(function (t) { t.stop(); }); return; }
+      localStream = stream; attachLocal();
+      mediaCall = call; setupMediaCall(call);
+      call.answer(stream);
+    }).catch(function () {
+      send({t: 'reject'}); try { call.close(); } catch (e) {}
+      endCall('لازم تسمح بالوصول للمايك' + (callType === 'video' ? ' والكاميرا' : ''));
+    });
+  }
+
+  function reject() { send({t: 'reject'}); closePending(); }
+
+  // ===== أثناء المكالمة =====
+  function setupMediaCall(call) {
+    call.on('stream', function (rs) {
+      if (mediaCall !== call) return;
+      var v = $('remoteVideo');
+      if (v.srcObject !== rs) {
+        v.srcObject = rs;
+        var p = v.play(); if (p && p.catch) p.catch(function () { $('tapAudio').style.display = 'block'; });
+      }
+      if (!connected) {
+        connected = true; clearTimeout(outgoingTimeout); stopSounds();
+        $('callStatus').textContent = roleLabel(otherRole()); startTimer();
+      }
+    });
+    call.on('close', function () { if (mediaCall === call) endCall('انتهت المكالمة'); });
+    call.on('error', function () { if (mediaCall === call) endCall('حدث خطأ في المكالمة'); });
+    setTimeout(function () {
+      var pc = call.peerConnection; if (!pc) return;
+      pc.addEventListener('iceconnectionstatechange', function () {
+        if (mediaCall !== call) return;
+        var s = pc.iceConnectionState;
+        if (s === 'failed') { send({t: 'hangup'}); endCall('تعذّر الربط بين الجهازين. غالبًا تحتاج إضافة خادم TURN.'); }
+        else if (s === 'disconnected') $('callStatus').textContent = 'الاتصال ضعيف...';
+        else if ((s === 'connected' || s === 'completed') && connected) $('callStatus').textContent = roleLabel(otherRole());
+      });
+    }, 0);
+  }
+
+  function enterCallUI(status) {
+    micOn = true; camOn = true;
+    $('micBtn').className = 'cbtn'; $('camBtn').className = 'cbtn';
+    $('camBtn').style.display = callType === 'video' ? 'inline-block' : 'none';
+    document.body.classList.toggle('video-call', callType === 'video');
+    $('audioName').textContent = roleLabel(otherRole());
+    $('callStatus').textContent = status; $('callTime').textContent = '';
+    $('tapAudio').style.display = 'none';
+    show('incall');
+  }
+
+  function attachLocal() {
+    if (callType !== 'video') return;
+    var lv = $('localVideo'); lv.srcObject = localStream;
+    var p = lv.play(); if (p && p.catch) p.catch(function () {});
+  }
+
+  function startTimer() {
+    callStart = Date.now(); clearInterval(timerInt);
+    timerInt = setInterval(function () {
+      var s = Math.floor((Date.now() - callStart) / 1000);
+      var mm = Math.floor(s / 60), ss = s % 60;
+      $('callTime').textContent = (mm < 10 ? '0' : '') + mm + ':' + (ss < 10 ? '0' : '') + ss;
+    }, 1000);
+  }
+
+  function endCall(msg) {
+    if (!inCall) return;
+    inCall = false; connected = false;
+    stopSounds(); clearTimeout(outgoingTimeout); clearInterval(timerInt);
+    var c = mediaCall; mediaCall = null; if (c) { try { c.close(); } catch (e) {} }
+    var d = dataConn; dataConn = null; if (d) setTimeout(function () { try { d.close(); } catch (e) {} }, 500);
+    if (localStream) { localStream.getTracks().forEach(function (t) { t.stop(); }); localStream = null; }
+    $('remoteVideo').srcObject = null; $('localVideo').srcObject = null;
+    document.body.classList.remove('video-call');
+    show('idle'); if (msg) toast(msg);
+  }
+
+  function hangUp() { send({t: connected ? 'hangup' : 'cancel'}); endCall(connected ? 'انتهت المكالمة' : 'تم الإلغاء'); }
+
+  function toggleMic() {
+    if (!localStream) return; micOn = !micOn;
+    localStream.getAudioTracks().forEach(function (t) { t.enabled = micOn; });
+    $('micBtn').className = micOn ? 'cbtn' : 'cbtn off';
+  }
+  function toggleCam() {
+    if (!localStream) return; camOn = !camOn;
+    localStream.getVideoTracks().forEach(function (t) { t.enabled = camOn; });
+    $('camBtn').className = camOn ? 'cbtn' : 'cbtn off';
+  }
+
+  // ===== التشغيل =====
+  function begin() {
+    var code = cfg.code;
+    myId = 'baytcall-' + code + '-' + cfg.role;
+    otherId = 'baytcall-' + code + '-' + otherRole();
+    $('meLabel').textContent = roleLabel(cfg.role);
+    $('audioCallBtn').textContent = '📞 اتصال صوتي بـ ' + roleLabel(otherRole());
+    $('videoCallBtn').textContent = '🎥 اتصال فيديو بـ ' + roleLabel(otherRole());
+    $('homeTip').style.display = cfg.role === 'home' ? 'block' : 'none';
+    show('idle');
+    var prob = supportProblem();
+    if (prob) { setStatus(false, prob); if (typeof Peer === 'undefined') return; }
+    startPeer();
+  }
+
+  function reset() {
+    if (!confirm('تغيير رمز العائلة أو نوع الجهاز؟')) return;
+    clearCfg(); location.reload();
+  }
+
+  $('saveBtn').onclick = function () {
+    var code = ($('codeInput').value || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    var r = document.querySelector('input[name=role]:checked');
+    if (code.length < 6) { toast('اكتب رمزًا من 6 حروف إنجليزية/أرقام على الأقل'); return; }
+    if (!r) { toast('اختر نوع هذا الجهاز'); return; }
+    cfg = {code: code, role: r.value}; saveCfg(cfg);
+    unlockAudio(); begin();
+  };
+  $('startBtn').onclick = function () { unlockAudio(); begin(); };
+  $('resetBtn1').onclick = reset; $('resetBtn2').onclick = reset;
+  $('audioCallBtn').onclick = function () { makeCall('audio'); };
+  $('videoCallBtn').onclick = function () { makeCall('video'); };
+  $('answerBtn').onclick = answer;
+  $('rejectBtn').onclick = reject;
+  $('hangBtn').onclick = hangUp;
+  $('micBtn').onclick = toggleMic;
+  $('camBtn').onclick = toggleCam;
+  $('tapAudio').onclick = function () {
+    var p = $('remoteVideo').play(); if (p && p.catch) p.catch(function () {});
+    $('tapAudio').style.display = 'none';
+  };
+
+  cfg = loadCfg();
+  if (cfg && cfg.code && cfg.role) {
+    $('startInfo').textContent = 'هذا الجهاز: ' + roleLabel(cfg.role) + ' — اضغط ابدأ للتشغيل';
+    show('start');
+  } else {
+    show('setup');
+  }
+})();
+</script>
+</body>
+</html>
