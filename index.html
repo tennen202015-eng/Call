@@ -89,6 +89,10 @@ body:not(.video-call) #audioView{display:-webkit-box;display:flex}
     فعّل: الإعدادات ← الشاشة والسطوع ← القفل التلقائي ← أبدًا.<br>
     وتأكد أن صوت الجهاز مرتفع.
   </div>
+  <div class="tip" id="phoneTip" style="display:none">
+    عشان موبايلك يرن حتى والصفحة مقفولة: ثبّت تطبيق <b>ntfy</b> من Google Play، اضغط <b>+</b> واشترك في الاسم ده بالظبط:<br>
+    <b id="topicName" style="direction:ltr;display:inline-block;font-size:17px;color:#fff;-webkit-user-select:all;user-select:all"></b>
+  </div>
   <button class="btn ghost" id="resetBtn2">تغيير الإعدادات</button>
 </section>
 
@@ -141,6 +145,10 @@ body:not(.video-call) #audioView{display:-webkit-box;display:flex}
     {urls: 'stun:stun.l.google.com:19302'},
     {urls: 'stun:stun1.l.google.com:19302'}
   ];
+
+  // خادم التنبيهات المجاني (تطبيق ntfy على أندرويد)
+  var NTFY_SERVER = 'https://ntfy.sh';
+  var notified = false, retryT = null;
 
   var LS_KEY = 'bayt-call-config';
   var cfg = null, peer = null, peerOpen = false, myId = '', otherId = '';
@@ -253,7 +261,7 @@ body:not(.video-call) #audioView{display:-webkit-box;display:flex}
     peer.on('error', function (err) {
       var t = err && err.type;
       if (t === 'peer-unavailable') {
-        if (inCall && isCaller) endCall(roleLabel(otherRole()) + ' غير متصل الآن. تأكد أن الصفحة مفتوحة عليه.');
+        if (inCall && isCaller && !connected) onOtherOffline();
       } else if (t === 'unavailable-id') {
         setStatus(false, 'الجهاز يُعاد ربطه... انتظر لحظات');
         try { peer.destroy(); } catch (e) {}
@@ -317,21 +325,64 @@ body:not(.video-call) #audioView{display:-webkit-box;display:flex}
     var prob = supportProblem(); if (prob) { toast(prob); return; }
     if (!peerOpen) { toast('لسه بيتصل بالخادم، جرّب بعد ثواني'); return; }
     if (inCall || pendingCall) return;
-    callType = type; isCaller = true; inCall = true; connected = false;
+    callType = type; isCaller = true; inCall = true; connected = false; notified = false;
     enterCallUI('جارٍ الاتصال بـ ' + roleLabel(otherRole()) + '...');
     getMedia(type).then(function (stream) {
       if (!inCall) { stream.getTracks().forEach(function (t) { t.stop(); }); return; }
       localStream = stream; attachLocal();
-      dataConn = peer.connect(otherId, {serialization: 'json', reliable: true});
-      dataConn.on('data', onMsg);
-      var call = peer.call(otherId, stream, {metadata: {type: type}});
-      if (!call) { endCall('تعذّر بدء المكالمة'); return; }
-      mediaCall = call; setupMediaCall(call);
+      dialOnce();
       playSound('backAudio');
       outgoingTimeout = setTimeout(function () { if (inCall && !connected) { send({t: 'cancel'}); endCall('لم يتم الرد'); } }, 45000);
     }).catch(function () {
       endCall('لازم تسمح بالوصول للمايك' + (type === 'video' ? ' والكاميرا' : ''));
     });
+  }
+
+  // محاولة اتصال واحدة (تتكرر تلقائيًا لو الطرف الآخر لسه بيفتح الصفحة)
+  function dialOnce() {
+    if (!inCall || connected || !localStream) return;
+    if (!peerOpen) { clearTimeout(retryT); retryT = setTimeout(dialOnce, 3000); return; }
+    dataConn = peer.connect(otherId, {serialization: 'json', reliable: true});
+    dataConn.on('data', onMsg);
+    var call = peer.call(otherId, localStream, {metadata: {type: callType}});
+    if (!call) { clearTimeout(retryT); retryT = setTimeout(dialOnce, 4000); return; }
+    mediaCall = call; setupMediaCall(call);
+  }
+
+  // الطرف الآخر مش فاتح الصفحة: نبعت تنبيه للموبايل ونعيد المحاولة لحد ما يفتح
+  function onOtherOffline() {
+    var c = mediaCall; mediaCall = null; if (c) { try { c.close(); } catch (e) {} }
+    var d = dataConn; dataConn = null; if (d) { try { d.close(); } catch (e) {} }
+    if (otherRole() === 'phone') {
+      if (!notified) {
+        notified = true; sendPush();
+        clearTimeout(outgoingTimeout);
+        outgoingTimeout = setTimeout(function () { if (inCall && !connected) { send({t: 'cancel'}); endCall('لم يتم الرد'); } }, 90000);
+      }
+      $('callStatus').textContent = 'تم تنبيه الموبايل... في انتظار الرد';
+      clearTimeout(retryT); retryT = setTimeout(dialOnce, 4000);
+    } else {
+      endCall(roleLabel(otherRole()) + ' غير متصل الآن. تأكد أن الصفحة مفتوحة عليه.');
+    }
+  }
+
+  function pushTopic() { return 'baytcall-' + cfg.code; }
+
+  function sendPush() {
+    try {
+      var url = location.href.split('#')[0].split('?')[0] + '?auto=1';
+      fetch(NTFY_SERVER + '/', {
+        method: 'POST',
+        body: JSON.stringify({
+          topic: pushTopic(),
+          title: 'مكالمة من البيت 📞',
+          message: roleLabel(cfg.role) + ' بيتصل بيك (' + (callType === 'video' ? 'فيديو' : 'صوت') + ') — اضغط للرد',
+          priority: 5,
+          tags: ['telephone_receiver'],
+          click: url
+        })
+      }).catch(function () {});
+    } catch (e) {}
   }
 
   // ===== مكالمة واردة =====
@@ -431,8 +482,8 @@ body:not(.video-call) #audioView{display:-webkit-box;display:flex}
 
   function endCall(msg) {
     if (!inCall) return;
-    inCall = false; connected = false;
-    stopSounds(); clearTimeout(outgoingTimeout); clearInterval(timerInt);
+    inCall = false; connected = false; notified = false;
+    stopSounds(); clearTimeout(outgoingTimeout); clearTimeout(retryT); clearInterval(timerInt);
     var c = mediaCall; mediaCall = null; if (c) { try { c.close(); } catch (e) {} }
     var d = dataConn; dataConn = null; if (d) setTimeout(function () { try { d.close(); } catch (e) {} }, 500);
     if (localStream) { localStream.getTracks().forEach(function (t) { t.stop(); }); localStream = null; }
@@ -463,6 +514,8 @@ body:not(.video-call) #audioView{display:-webkit-box;display:flex}
     $('audioCallBtn').textContent = '📞 اتصال صوتي بـ ' + roleLabel(otherRole());
     $('videoCallBtn').textContent = '🎥 اتصال فيديو بـ ' + roleLabel(otherRole());
     $('homeTip').style.display = cfg.role === 'home' ? 'block' : 'none';
+    $('phoneTip').style.display = cfg.role === 'phone' ? 'block' : 'none';
+    $('topicName').textContent = 'baytcall-' + code;
     show('idle');
     var prob = supportProblem();
     if (prob) { setStatus(false, prob); if (typeof Peer === 'undefined') return; }
@@ -497,7 +550,10 @@ body:not(.video-call) #audioView{display:-webkit-box;display:flex}
   };
 
   cfg = loadCfg();
-  if (cfg && cfg.code && cfg.role) {
+  if (cfg && cfg.code && cfg.role && /[?&]auto=1/.test(location.search)) {
+    // اتفتح من تنبيه المكالمة: ندخل على طول عشان المكالمة توصل
+    begin();
+  } else if (cfg && cfg.code && cfg.role) {
     $('startInfo').textContent = 'هذا الجهاز: ' + roleLabel(cfg.role) + ' — اضغط ابدأ للتشغيل';
     show('start');
   } else {
