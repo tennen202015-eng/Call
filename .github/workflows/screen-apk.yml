@@ -19,7 +19,9 @@ jobs:
           gradle-version: '8.9'
       - name: Build APK
         working-directory: screen-app
-        run: gradle assembleRelease --no-daemon --stacktrace
+        run: |
+          set -o pipefail
+          gradle assembleRelease --no-daemon 2>&1 | tee build.log || { grep -E "^e: |error:|What went wrong|Could not" -A2 build.log | head -40 | while IFS= read -r l; do echo "::error::$l"; done; exit 1; }
       - run: cp screen-app/app/build/outputs/apk/release/app-release.apk BaytScreen.apk
       - uses: softprops/action-gh-release@v2
         with:
