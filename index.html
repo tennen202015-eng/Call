@@ -48,6 +48,8 @@ input[type=text]{width:100%;font-size:18px;padding:12px;border-radius:12px;borde
 #remoteVideo{position:fixed;top:0;left:0;width:100%;height:100%;object-fit:cover;background:#000}
 #localVideo{position:fixed;top:16px;left:16px;width:28%;max-width:180px;border-radius:12px;border:2px solid rgba(255,255,255,.6);-webkit-transform:scaleX(-1);transform:scaleX(-1);background:#111;z-index:3}
 body:not(.video-call) #remoteVideo{width:1px;height:1px;opacity:0}
+body.screen-call #remoteVideo{object-fit:contain}
+body.screen-call #localVideo{display:none}
 body:not(.video-call) #localVideo{display:none}
 #audioView{position:fixed;top:0;left:0;right:0;bottom:0;display:none;-webkit-box-orient:vertical;flex-direction:column;align-items:center;justify-content:center;background:var(--bg);z-index:1}
 body:not(.video-call) #audioView{display:-webkit-box;display:flex}
@@ -136,6 +138,7 @@ body:not(.video-call) #audioView{display:-webkit-box;display:flex}
   <div id="memberBtns" style="display:none;width:100%;max-width:440px">
     <button class="btn green" id="audioCallBtn">📞 اتصال صوتي بالبيت</button>
     <button class="btn" id="videoCallBtn">🎥 اتصال فيديو بالبيت</button>
+    <button class="btn" id="screenBtn" style="background:#0ea5e9">📺 اعرض شاشة موبايلي على الـ iPad</button>
     <button class="btn" id="chatBtn" style="background:#6366f1">💬 الرسائل<span class="badge" id="unread" style="display:none"></span></button>
   </div>
 
@@ -422,7 +425,18 @@ body:not(.video-call) #audioView{display:-webkit-box;display:flex}
     else if (m.t === 'busy') endCall(nameOf(callWith) + ' في مكالمة الآن');
   }
 
+  function canShareScreen() { return !!(navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia); }
+  // عرض الشاشة: صورة الشاشة + المايك (لو اتسمح) عشان تقدر تتكلم وانت بتشرح
+  function getScreenMedia() {
+    return navigator.mediaDevices.getDisplayMedia({video: {frameRate: {ideal: 15, max: 30}}, audio: false}).then(function (scr) {
+      return navigator.mediaDevices.getUserMedia({audio: {echoCancellation: true, noiseSuppression: true}}).then(function (mic) {
+        mic.getAudioTracks().forEach(function (t) { scr.addTrack(t); });
+        return scr;
+      }).catch(function () { return scr; });
+    });
+  }
   function getMedia(type) {
+    if (type === 'screen') return getScreenMedia();
     return navigator.mediaDevices.getUserMedia({
       audio: {echoCancellation: true, noiseSuppression: true},
       video: type === 'video' ? {facingMode: 'user', width: {ideal: 640}, height: {ideal: 480}} : false
@@ -433,17 +447,19 @@ body:not(.video-call) #audioView{display:-webkit-box;display:flex}
     var prob = supportProblem(); if (prob) { toast(prob); return; }
     if (!peerOpen) { toast('لسه بيتصل بالخادم، جرّب بعد ثواني'); return; }
     if (inCall || pendingCall) return;
+    if (type === 'screen' && !canShareScreen()) { toast('متصفح الموبايل ده لا يسمح بعرض الشاشة من الموقع. هتحتاج تطبيق أندرويد خاص بعرض الشاشة.'); return; }
     rememberScreen();
     callType = type; callWith = withId; isCaller = true; inCall = true; connected = false; notified = false;
     enterCallUI('جارٍ الاتصال بـ ' + nameOf(withId) + '...');
     getMedia(type).then(function (stream) {
       if (!inCall) { stream.getTracks().forEach(function (t) { t.stop(); }); return; }
       localStream = stream; attachLocal();
+      if (type === 'screen') stream.getVideoTracks().forEach(function (t) { t.onended = function () { if (inCall) hangUp(); }; });
       dialOnce();
       playSound('backAudio');
       outgoingTimeout = setTimeout(function () { if (inCall && !connected) { send({t: 'cancel'}); endCall('لم يتم الرد'); } }, 45000);
     }).catch(function () {
-      endCall('لازم تسمح بالوصول للمايك' + (type === 'video' ? ' والكاميرا' : ''));
+      endCall(type === 'screen' ? 'لم يبدأ عرض الشاشة. متصفح الموبايل غالبًا لا يدعمه، أو تم رفض الإذن.' : 'لازم تسمح بالوصول للمايك' + (type === 'video' ? ' والكاميرا' : ''));
     });
   }
 
@@ -479,7 +495,7 @@ body:not(.video-call) #audioView{display:-webkit-box;display:flex}
       fetch(NTFY + '/', {method: 'POST', body: JSON.stringify({
         topic: inboxFor(callWith),
         title: 'مكالمة من البيت 📞',
-        message: 'البيت بيتصل بيك (' + (callType === 'video' ? 'فيديو' : 'صوت') + ') — اضغط للرد',
+        message: 'البيت بيتصل بيك (' + (callType === 'video' ? 'فيديو' : (callType === 'screen' ? 'عرض شاشة' : 'صوت')) + ') — اضغط للرد',
         priority: 5, tags: ['telephone_receiver'], click: baseUrl() + '?auto=1'
       })}).catch(function () {});
     } catch (e) {}
@@ -492,10 +508,10 @@ body:not(.video-call) #audioView{display:-webkit-box;display:flex}
     pendingCall = call;
     callWith = md.from || (isHome() ? 'main' : 'home');
     if (md.name) registerMember(callWith, md.name); else registerMember(callWith, '');
-    callType = md.type === 'video' ? 'video' : 'audio';
-    $('inIco').textContent = callType === 'video' ? '🎥' : '📞';
-    $('inTitle').textContent = callType === 'video' ? 'مكالمة فيديو واردة' : 'مكالمة صوتية واردة';
-    $('inFrom').textContent = 'من ' + nameOf(callWith);
+    callType = (md.type === 'video' || md.type === 'screen') ? md.type : 'audio';
+    $('inIco').textContent = callType === 'screen' ? '📺' : (callType === 'video' ? '🎥' : '📞');
+    $('inTitle').textContent = callType === 'screen' ? 'عرض شاشة وارد' : (callType === 'video' ? 'مكالمة فيديو واردة' : 'مكالمة صوتية واردة');
+    $('inFrom').textContent = (callType === 'screen' ? 'شاشة ' : 'من ') + nameOf(callWith);
     hideSheet(); show('incoming'); playSound('ringAudio');
     clearTimeout(incomingTimeout);
     incomingTimeout = setTimeout(function () { if (pendingCall === call) { send({t: 'reject'}); closePending(); toast('فاتتك مكالمة من ' + nameOf(callWith)); } }, 60000);
@@ -514,7 +530,7 @@ body:not(.video-call) #audioView{display:-webkit-box;display:flex}
     var prob = supportProblem(); if (prob) { toast(prob); send({t: 'reject'}); closePending(); return; }
     pendingCall = null; isCaller = false; inCall = true; connected = false;
     enterCallUI('جارٍ الربط...');
-    getMedia(callType).then(function (stream) {
+    getMedia(callType === 'screen' ? 'audio' : callType).then(function (stream) {
       if (!inCall) { stream.getTracks().forEach(function (t) { t.stop(); }); return; }
       localStream = stream; attachLocal();
       mediaCall = call; setupMediaCall(call);
@@ -556,7 +572,8 @@ body:not(.video-call) #audioView{display:-webkit-box;display:flex}
     micOn = true; camOn = true;
     $('micBtn').className = 'cbtn'; $('camBtn').className = 'cbtn';
     $('camBtn').style.display = callType === 'video' ? 'inline-block' : 'none';
-    document.body.classList.toggle('video-call', callType === 'video');
+    document.body.classList.toggle('video-call', callType !== 'audio');
+    document.body.classList.toggle('screen-call', callType === 'screen');
     $('audioName').textContent = nameOf(callWith);
     $('callStatus').textContent = status; $('callTime').textContent = '';
     $('tapAudio').style.display = 'none';
@@ -582,7 +599,7 @@ body:not(.video-call) #audioView{display:-webkit-box;display:flex}
     var d = dataConn; dataConn = null; if (d) setTimeout(function () { try { d.close(); } catch (e) {} }, 500);
     if (localStream) { localStream.getTracks().forEach(function (t) { t.stop(); }); localStream = null; }
     $('remoteVideo').srcObject = null; $('localVideo').srcObject = null;
-    document.body.classList.remove('video-call');
+    document.body.classList.remove('video-call'); document.body.classList.remove('screen-call');
     backHome(); if (msg) toast(msg);
   }
   function hangUp() { send({t: connected ? 'hangup' : 'cancel'}); endCall(connected ? 'انتهت المكالمة' : 'تم الإلغاء'); }
@@ -1146,6 +1163,7 @@ body:not(.video-call) #audioView{display:-webkit-box;display:flex}
   $('resetBtn1').onclick = reset; $('resetBtn2').onclick = reset;
   $('audioCallBtn').onclick = function () { makeCall('audio', 'home'); };
   $('videoCallBtn').onclick = function () { makeCall('video', 'home'); };
+  $('screenBtn').onclick = function () { makeCall('screen', 'home'); };
   $('chatBtn').onclick = function () { openChat('home'); };
   $('answerBtn').onclick = answer;
   $('rejectBtn').onclick = reject;
