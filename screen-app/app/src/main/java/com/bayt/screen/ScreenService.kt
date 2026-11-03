@@ -210,11 +210,9 @@ class ScreenService : Service() {
             .setUseHardwareAcousticEchoCanceler(false)
             .setUseHardwareNoiseSuppressor(false)
             .setUseStereoInput(true)
-            .setAudioRecordDataCallback(object : JavaAudioDeviceModule.AudioRecordDataCallback {
-                override fun onAudioDataRecorded(audioFormat: Int, channelCount: Int, sampleRate: Int, audioBuffer: ByteBuffer) {
-                    mixInnerAudio(channelCount, sampleRate, audioBuffer)
-                }
-            })
+            .setAudioRecordDataCallback { _, channelCount, sampleRate, audioBuffer ->
+                mixInnerAudio(channelCount, sampleRate, audioBuffer)
+            }
             .createAudioDeviceModule()
         val f = PeerConnectionFactory.builder()
             .setVideoEncoderFactory(DefaultVideoEncoderFactory(e.eglBaseContext, true, false))
