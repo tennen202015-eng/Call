@@ -542,6 +542,11 @@ class ScreenService : Service() {
         setStatus(localAddressText())
     }
 
+    private fun candIps(sdp: String): List<String> =
+        sdp.split("\r\n").filter { it.startsWith("a=candidate:") }.mapNotNull {
+            val p = it.split(" "); if (p.size > 7) p[4] + ":" + p[5] + "(" + p[7] + ")" else null
+        }.distinct()
+
     private fun localAddressText(): String {
         val ips = localAddresses()
         if (ips.isEmpty()) return "مش متصل بواي فاي ولا مشغّل نقطة اتصال.\nشغّل نقطة الاتصال (Hotspot) ووصّل بيها الـ iPad، وبعدين أوقف العرض وشغّله تاني."
@@ -596,6 +601,10 @@ class ScreenService : Service() {
                                     latch.await(2500, TimeUnit.MILLISECONDS)
                                     main.post {
                                         val sdp = p.localDescription?.description
+                                        if (sdp != null) {
+                                            val ips = candIps(sdp)
+                                            setStatus(localAddressText() + "\n\nعناوين الفيديو: " + (if (ips.isEmpty()) "لا يوجد ⚠️" else ips.joinToString(", ")))
+                                        }
                                         done(if (sdp == null) null else JSONObject().put("id", viewerId).put("sdp", sdp).toString())
                                     }
                                 }.start()
@@ -745,7 +754,7 @@ body.r180 #v{-webkit-transform:rotate(180deg);transform:rotate(180deg)}
 #msg{position:fixed;top:16px;left:16px;right:16px;text-align:center;font-size:17px;z-index:6;text-shadow:0 1px 4px #000}
 </style></head><body>
 <video id="v" playsinline autoplay></video>
-<div id="msg"></div>
+<div id="msg"></div><div id="dbg" style="position:fixed;bottom:4px;left:6px;right:6px;z-index:7;font-size:12px;color:#94a3b8;direction:ltr;text-align:left"></div>
 <div id="bar" class="hide"><button id="rot">🔄</button><button id="fill">⛶</button></div>
 <div id="cover"><div style="font-size:64px">📺</div><h1>شاشة الموبايل</h1><p id="cmsg">اضغط الزر عشان تبدأ العرض بالصوت</p><button id="go">▶ ابدأ العرض</button></div>
 <script>
@@ -778,7 +787,9 @@ body.r180 #v{-webkit-transform:rotate(180deg);transform:rotate(180deg)}
     req('GET','/offer?t='+new Date().getTime(),null,function(r){
       if(!r)return retry('الموبايل مش بيرد... تأكد إن العرض شغال وإن الجهازين على نفس الشبكة');
       var o;try{o=JSON.parse(r);}catch(e){return retry('خطأ، إعادة المحاولة...');}
-      var p=new RTCPeerConnection({iceServers:[]});pc=p;
+      var cands=[];o.sdp.split('\r\n').forEach(function(l){if(l.indexOf('a=candidate:')===0){var q=l.split(' ');cands.push(q[4]+':'+q[5]);}});
+      var dbg=function(st){$('dbg').textContent='حالة: '+st+' • عناوين الموبايل: '+(cands.length?cands.join(' , '):'لا يوجد');};
+      var p=new RTCPeerConnection({iceServers:[]});pc=p;dbg('بدء');
       p.ontrack=function(ev){
         var v=$('v');
         var st=(ev.streams&&ev.streams[0])||null;
@@ -788,7 +799,7 @@ body.r180 #v{-webkit-transform:rotate(180deg);transform:rotate(180deg)}
       };
       p.oniceconnectionstatechange=function(){
         if(pc!==p)return;
-        var st=p.iceConnectionState;
+        var st=p.iceConnectionState;dbg(st);
         if(st==='connected'||st==='completed')msg('');
         else if(st==='failed')retry('انقطع الاتصال... إعادة المحاولة');
         else if(st==='disconnected')setTimeout(function(){if(pc===p&&p.iceConnectionState==='disconnected')retry('انقطع الاتصال... إعادة المحاولة');},4000);
