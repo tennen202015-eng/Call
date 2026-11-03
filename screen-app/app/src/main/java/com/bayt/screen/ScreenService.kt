@@ -31,7 +31,12 @@ import org.webrtc.audio.JavaAudioDeviceModule
 import java.io.BufferedReader
 import java.io.InputStreamReader
 import java.io.OutputStream
+import java.net.DatagramPacket
+import java.net.DatagramSocket
 import java.net.Inet4Address
+import java.net.InetAddress
+import java.net.InetSocketAddress
+import java.net.SocketAddress
 import java.net.NetworkInterface
 import java.net.ServerSocket
 import java.net.Socket
@@ -122,6 +127,7 @@ class ScreenService : Service() {
     private var server: ServerSocket? = null
     private var gatherLatch: CountDownLatch? = null
     private var viewerId = 0
+    private val relays = ArrayList<DatagramSocket>()
 
     private val heartbeat = object : Runnable {
         override fun run() {
@@ -542,6 +548,75 @@ class ScreenService : Service() {
         setStatus(localAddressText())
     }
 
+    /**
+     * أندرويد ساعات ما بيخليش WebRTC يشوف شبكة الهوت سبوت. فبنفتح إحنا منفذ على عنوان الهوت سبوت
+     * ونوصّل كل اللي يجيله لمحرك الفيديو جوه الموبايل والعكس (وسيط داخلي).
+     */
+    private fun addRelays(sdp: String): String {
+        closeRelays()
+        val lines = sdp.split("\r\n")
+        val cands = lines.filter { it.startsWith("a=candidate:") && it.contains(" udp ") && it.contains(" typ host") }
+            .mapNotNull { val q = it.split(" "); if (q.size > 5) Pair(q[4], q[5].toIntOrNull() ?: 0) else null }
+        val target = cands.firstOrNull { !it.first.contains(":") } ?: cands.firstOrNull() ?: return sdp
+        val have = cands.map { it.first }.toSet()
+        val extra = ArrayList<String>()
+        var idx = 0
+        for (ip in localAddresses()) {
+            if (ip in have) continue
+            try {
+                val outer = DatagramSocket(null as SocketAddress?).apply { reuseAddress = true; bind(InetSocketAddress(InetAddress.getByName(ip), 0)) }
+                val inner = DatagramSocket(InetSocketAddress(0))
+                relays.add(outer); relays.add(inner)
+                val dst = InetSocketAddress(InetAddress.getByName(target.first), target.second)
+                pump(outer, inner, dst)
+                extra.add("a=candidate:99${idx++} 1 udp 2130706431 $ip ${outer.localPort} typ host generation 0")
+            } catch (_: Exception) {}
+        }
+        if (extra.isEmpty()) return sdp
+        // نضيف العناوين الجديدة في كل قسم فيه عناوين (فيديو وصوت)
+        val out = ArrayList<String>()
+        var i = 0
+        while (i < lines.size) {
+            out.add(lines[i])
+            val isCand = lines[i].startsWith("a=candidate:")
+            val nextIsCand = i + 1 < lines.size && lines[i + 1].startsWith("a=candidate:")
+            if (isCand && !nextIsCand) out.addAll(extra)
+            i++
+        }
+        return out.joinToString("\r\n")
+    }
+
+    private fun pump(outer: DatagramSocket, inner: DatagramSocket, webrtc: InetSocketAddress) {
+        val ipad = java.util.concurrent.atomic.AtomicReference<SocketAddress?>(null)
+        Thread {
+            val buf = ByteArray(65536)
+            while (running && !outer.isClosed) {
+                try {
+                    val pk = DatagramPacket(buf, buf.size)
+                    outer.receive(pk)
+                    ipad.set(pk.socketAddress)
+                    inner.send(DatagramPacket(pk.data, pk.offset, pk.length, webrtc))
+                } catch (_: Exception) { if (outer.isClosed) break }
+            }
+        }.start()
+        Thread {
+            val buf = ByteArray(65536)
+            while (running && !inner.isClosed) {
+                try {
+                    val pk = DatagramPacket(buf, buf.size)
+                    inner.receive(pk)
+                    val to = ipad.get() ?: continue
+                    outer.send(DatagramPacket(pk.data, pk.offset, pk.length, to))
+                } catch (_: Exception) { if (inner.isClosed) break }
+            }
+        }.start()
+    }
+
+    private fun closeRelays() {
+        relays.forEach { try { it.close() } catch (_: Exception) {} }
+        relays.clear()
+    }
+
     private fun candIps(sdp: String): List<String> =
         sdp.split("\r\n").filter { it.startsWith("a=candidate:") }.mapNotNull {
             val p = it.split(" "); if (p.size > 7) p[4] + ":" + p[5] + "(" + p[7] + ")" else null
@@ -600,10 +675,11 @@ class ScreenService : Service() {
                                 Thread {
                                     latch.await(2500, TimeUnit.MILLISECONDS)
                                     main.post {
-                                        val sdp = p.localDescription?.description
+                                        val raw = p.localDescription?.description
+                                        val sdp = if (raw == null) null else addRelays(raw)
                                         if (sdp != null) {
                                             val ips = candIps(sdp)
-                                            setStatus(localAddressText() + "\n\nعناوين الفيديو: " + (if (ips.isEmpty()) "لا يوجد ⚠️" else ips.joinToString(", ")))
+                                            setStatus(localAddressText() + "\n\nعناوين الفيديو: " + (if (ips.isEmpty()) "لا يوجد ⚠️ (شغّل بيانات الموبايل)" else ips.joinToString(", ")))
                                         }
                                         done(if (sdp == null) null else JSONObject().put("id", viewerId).put("sdp", sdp).toString())
                                     }
@@ -683,6 +759,7 @@ class ScreenService : Service() {
         main.removeCallbacksAndMessages(null)
         try { server?.close() } catch (_: Exception) {}
         server = null
+        closeRelays()
         try { ws?.close(1000, "bye") } catch (_: Exception) {}
         ws = null
         try { innerRec?.stop(); innerRec?.release() } catch (_: Exception) {}
