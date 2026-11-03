@@ -13,6 +13,7 @@ import android.text.InputType
 import android.view.Gravity
 import android.view.View
 import android.widget.Button
+import android.widget.CheckBox
 import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.ScrollView
@@ -27,6 +28,8 @@ class MainActivity : Activity() {
     private lateinit var statusText: TextView
     private lateinit var localBtn: Button
     private lateinit var localText: TextView
+    private lateinit var micBox: CheckBox
+    private var pendingMode = "net"
 
     private val prefs by lazy { getSharedPreferences("bayt", Context.MODE_PRIVATE) }
 
@@ -90,6 +93,14 @@ class MainActivity : Activity() {
         root.addView(label("اسمك (هيظهر على الـ iPad)"))
         nameInput = field("مثال: أحمد").apply { setText(prefs.getString("name", "حماده")) }
         root.addView(nameInput, LinearLayout.LayoutParams(-1, -2))
+        micBox = CheckBox(this).apply {
+            text = "🎙️ ابعت صوتي أنا كمان (المايك) مع صوت الموبايل"
+            textSize = 15f; setTextColor(Color.parseColor("#F1F5F9"))
+            isChecked = prefs.getBoolean("mic", false)
+            setPadding(dp(6), dp(14), dp(6), dp(4))
+            setOnCheckedChangeListener { _, c -> prefs.edit().putBoolean("mic", c).apply() }
+        }
+        root.addView(micBox, LinearLayout.LayoutParams(-1, -2))
 
         startBtn = Button(this).apply {
             textSize = 20f; setTextColor(Color.WHITE); isAllCaps = false
@@ -144,20 +155,28 @@ class MainActivity : Activity() {
 
     override fun onResume() {
         super.onResume()
-        ScreenService.listener = { msg, active -> showStatus(msg, active) }
-        showStatus(ScreenService.status, ScreenService.running)
-        LocalService.listener = { msg, active -> showLocal(msg, active) }
-        showLocal(LocalService.status, LocalService.running)
+        ScreenService.listener = { msg, active -> render(msg, active) }
+        render(ScreenService.status, ScreenService.running)
     }
 
     override fun onPause() {
         super.onPause()
         ScreenService.listener = null
-        LocalService.listener = null
+    }
+
+    private fun render(msg: String, active: Boolean) {
+        val on = active || ScreenService.running
+        val local = ScreenService.mode == "local"
+        showStatus(if (local) "" else msg, on && !local)
+        showLocal(if (local) msg else "", on && local)
+        startBtn.isEnabled = !(on && local)
+        localBtn.isEnabled = !(on && !local)
+        startBtn.alpha = if (startBtn.isEnabled) 1f else 0.4f
+        localBtn.alpha = if (localBtn.isEnabled) 1f else 0.4f
     }
 
     private fun showLocal(msg: String, active: Boolean) {
-        val on = active || LocalService.running
+        val on = active
         localBtn.text = if (on) "⏹ إيقاف العرض المحلي" else "📡 عرض محلي بدون نت"
         localBtn.background = rounded(Color.parseColor(if (on) "#EF4444" else "#22C55E"), 14)
         if (msg.isEmpty()) localText.visibility = View.GONE
@@ -165,21 +184,16 @@ class MainActivity : Activity() {
     }
 
     private fun onLocal() {
-        if (LocalService.running) {
-            startService(Intent(this, LocalService::class.java).setAction(LocalService.ACTION_STOP))
+        if (ScreenService.running) {
+            startService(Intent(this, ScreenService::class.java).setAction(ScreenService.ACTION_STOP))
             return
         }
-        if (ScreenService.running) { toast("أوقف العرض عبر الإنترنت الأول"); return }
-        if (Build.VERSION.SDK_INT >= 33 &&
-            checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
-            requestPermissions(arrayOf(android.Manifest.permission.POST_NOTIFICATIONS), 11)
-            return
-        }
-        askProjection(21)
+        pendingMode = "local"
+        askPermsThenProjection()
     }
 
     private fun showStatus(msg: String, active: Boolean) {
-        val on = active || ScreenService.running
+        val on = active
         startBtn.text = if (on) "⏹ إيقاف العرض" else "▶ ابدأ عرض الشاشة"
         startBtn.background = rounded(Color.parseColor(if (on) "#EF4444" else "#0EA5E9"), 14)
         if (msg.isEmpty()) statusText.visibility = View.GONE
@@ -191,11 +205,15 @@ class MainActivity : Activity() {
             startService(Intent(this, ScreenService::class.java).setAction(ScreenService.ACTION_STOP))
             return
         }
-        if (LocalService.running) { toast("أوقف العرض المحلي الأول"); return }
         val code = codeInput.text.toString().lowercase().replace(Regex("[^a-z0-9]"), "")
         val name = nameInput.text.toString().trim().take(30)
         if (code.length < 6) { toast("اكتب رمز العيلة (6 حروف إنجليزية/أرقام على الأقل)"); return }
         prefs.edit().putString("code", code).putString("name", name).apply()
+        pendingMode = "net"
+        askPermsThenProjection()
+    }
+
+    private fun askPermsThenProjection() {
 
         val need = ArrayList<String>()
         if (checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED)
@@ -210,10 +228,9 @@ class MainActivity : Activity() {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         if (requestCode == 10) {
             if (checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED)
-                toast("بدون المايك: هيشوفوا الشاشة بس من غير صوتك")
+                toast("بدون إذن تسجيل الصوت: الشاشة هتتعرض من غير صوت")
             askProjection(20)
         }
-        if (requestCode == 11) askProjection(21)
     }
 
     private fun askProjection(req: Int) {
@@ -226,21 +243,18 @@ class MainActivity : Activity() {
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         @Suppress("DEPRECATION")
         super.onActivityResult(requestCode, resultCode, data)
-        if (requestCode != 20 && requestCode != 21) return
+        if (requestCode != 20) return
         if (resultCode != RESULT_OK || data == null) { toast("لازم توافق على تسجيل الشاشة"); return }
-        if (requestCode == 21) {
-            val li = Intent(this, LocalService::class.java).putExtra(LocalService.EXTRA_DATA, data)
-            if (Build.VERSION.SDK_INT >= 26) startForegroundService(li) else startService(li)
-            showLocal("جارٍ التشغيل...", true)
-            return
-        }
         val i = Intent(this, ScreenService::class.java)
             .setAction(ScreenService.ACTION_START)
             .putExtra(ScreenService.EXTRA_DATA, data)
             .putExtra(ScreenService.EXTRA_CODE, prefs.getString("code", ""))
             .putExtra(ScreenService.EXTRA_NAME, prefs.getString("name", ""))
+            .putExtra(ScreenService.EXTRA_MODE, pendingMode)
+            .putExtra(ScreenService.EXTRA_MIC, micBox.isChecked)
+        ScreenService.mode = pendingMode
         if (Build.VERSION.SDK_INT >= 26) startForegroundService(i) else startService(i)
-        showStatus("جارٍ التحضير...", true)
+        render("جارٍ التحضير...", true)
     }
 
     private fun toast(s: String) = Toast.makeText(this, s, Toast.LENGTH_LONG).show()
