@@ -1,0 +1,30 @@
+name: Build screen app APK
+on:
+  push:
+    paths: ['screen-app/**', '.github/workflows/screen-apk.yml']
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Build APK
+        working-directory: screen-app
+        run: gradle assembleRelease --no-daemon --stacktrace
+      - run: cp screen-app/app/build/outputs/apk/release/app-release.apk BaytScreen.apk
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: screen-app-latest
+          name: تطبيق عرض الشاشة
+          body: نزّل BaytScreen.apk على موبايل أندرويد وثبّته.
+          files: BaytScreen.apk
+          make_latest: true
