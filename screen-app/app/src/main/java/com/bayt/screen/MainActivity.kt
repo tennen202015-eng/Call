@@ -25,6 +25,8 @@ class MainActivity : Activity() {
     private lateinit var nameInput: EditText
     private lateinit var startBtn: Button
     private lateinit var statusText: TextView
+    private lateinit var localBtn: Button
+    private lateinit var localText: TextView
 
     private val prefs by lazy { getSharedPreferences("bayt", Context.MODE_PRIVATE) }
 
@@ -104,6 +106,31 @@ class MainActivity : Activity() {
         }
         root.addView(statusText, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(16) })
 
+        // ===== العرض المحلي بدون نت =====
+        root.addView(TextView(this).apply {
+            text = "— أو بدون إنترنت —"; textSize = 15f; setTextColor(Color.parseColor("#94A3B8"))
+            gravity = Gravity.CENTER; setPadding(0, dp(26), 0, 0)
+        })
+        root.addView(TextView(this).apply {
+            text = "لو الـ iPad جنبك: خلّي الجهازين على نفس الواي فاي، أو شغّل نقطة الاتصال (Hotspot) من موبايلك ووصّل بيها الـ iPad."
+            textSize = 14f; setTextColor(Color.parseColor("#94A3B8")); gravity = Gravity.CENTER
+            setLineSpacing(0f, 1.3f); setPadding(0, dp(6), 0, 0)
+        })
+        localBtn = Button(this).apply {
+            textSize = 19f; setTextColor(Color.WHITE); isAllCaps = false
+            setPadding(0, dp(14), 0, dp(14))
+            setOnClickListener { onLocal() }
+        }
+        root.addView(localBtn, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(12) })
+        localText = TextView(this).apply {
+            textSize = 18f; setTextColor(Color.WHITE); gravity = Gravity.CENTER
+            setTextIsSelectable(true); setLineSpacing(0f, 1.3f)
+            background = rounded(Color.parseColor("#1E293B"), 14, Color.parseColor("#334155"))
+            setPadding(dp(14), dp(12), dp(14), dp(12))
+            visibility = View.GONE
+        }
+        root.addView(localText, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(12) })
+
         root.addView(TextView(this).apply {
             text = "• لازم صفحة المكالمات تكون مفتوحة على الـ iPad.\n• تقدر تقفل التطبيق ده وتفتح أي حاجة، والعرض هيفضل شغال.\n• للإيقاف: من الإشعار اضغط «إيقاف»، أو ارجع هنا."
             textSize = 14f; setTextColor(Color.parseColor("#94A3B8"))
@@ -119,11 +146,36 @@ class MainActivity : Activity() {
         super.onResume()
         ScreenService.listener = { msg, active -> showStatus(msg, active) }
         showStatus(ScreenService.status, ScreenService.running)
+        LocalService.listener = { msg, active -> showLocal(msg, active) }
+        showLocal(LocalService.status, LocalService.running)
     }
 
     override fun onPause() {
         super.onPause()
         ScreenService.listener = null
+        LocalService.listener = null
+    }
+
+    private fun showLocal(msg: String, active: Boolean) {
+        val on = active || LocalService.running
+        localBtn.text = if (on) "⏹ إيقاف العرض المحلي" else "📡 عرض محلي بدون نت"
+        localBtn.background = rounded(Color.parseColor(if (on) "#EF4444" else "#22C55E"), 14)
+        if (msg.isEmpty()) localText.visibility = View.GONE
+        else { localText.text = msg; localText.visibility = View.VISIBLE }
+    }
+
+    private fun onLocal() {
+        if (LocalService.running) {
+            startService(Intent(this, LocalService::class.java).setAction(LocalService.ACTION_STOP))
+            return
+        }
+        if (ScreenService.running) { toast("أوقف العرض عبر الإنترنت الأول"); return }
+        if (Build.VERSION.SDK_INT >= 33 &&
+            checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(arrayOf(android.Manifest.permission.POST_NOTIFICATIONS), 11)
+            return
+        }
+        askProjection(21)
     }
 
     private fun showStatus(msg: String, active: Boolean) {
@@ -139,6 +191,7 @@ class MainActivity : Activity() {
             startService(Intent(this, ScreenService::class.java).setAction(ScreenService.ACTION_STOP))
             return
         }
+        if (LocalService.running) { toast("أوقف العرض المحلي الأول"); return }
         val code = codeInput.text.toString().lowercase().replace(Regex("[^a-z0-9]"), "")
         val name = nameInput.text.toString().trim().take(30)
         if (code.length < 6) { toast("اكتب رمز العيلة (6 حروف إنجليزية/أرقام على الأقل)"); return }
@@ -150,7 +203,7 @@ class MainActivity : Activity() {
         if (Build.VERSION.SDK_INT >= 33 &&
             checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED)
             need.add(android.Manifest.permission.POST_NOTIFICATIONS)
-        if (need.isNotEmpty()) requestPermissions(need.toTypedArray(), 10) else askProjection()
+        if (need.isNotEmpty()) requestPermissions(need.toTypedArray(), 10) else askProjection(20)
     }
 
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
@@ -158,22 +211,29 @@ class MainActivity : Activity() {
         if (requestCode == 10) {
             if (checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED)
                 toast("بدون المايك: هيشوفوا الشاشة بس من غير صوتك")
-            askProjection()
+            askProjection(20)
         }
+        if (requestCode == 11) askProjection(21)
     }
 
-    private fun askProjection() {
+    private fun askProjection(req: Int) {
         val mpm = getSystemService(Context.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
         @Suppress("DEPRECATION")
-        startActivityForResult(mpm.createScreenCaptureIntent(), 20)
+        startActivityForResult(mpm.createScreenCaptureIntent(), req)
     }
 
     @Deprecated("Deprecated in Java")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         @Suppress("DEPRECATION")
         super.onActivityResult(requestCode, resultCode, data)
-        if (requestCode != 20) return
+        if (requestCode != 20 && requestCode != 21) return
         if (resultCode != RESULT_OK || data == null) { toast("لازم توافق على تسجيل الشاشة"); return }
+        if (requestCode == 21) {
+            val li = Intent(this, LocalService::class.java).putExtra(LocalService.EXTRA_DATA, data)
+            if (Build.VERSION.SDK_INT >= 26) startForegroundService(li) else startService(li)
+            showLocal("جارٍ التشغيل...", true)
+            return
+        }
         val i = Intent(this, ScreenService::class.java)
             .setAction(ScreenService.ACTION_START)
             .putExtra(ScreenService.EXTRA_DATA, data)
