@@ -67,6 +67,8 @@ class ScreenService : Service() {
     private var remoteSet = false
     private val pendingCandidates = ArrayList<IceCandidate>()
     private var connected = false
+    private var capW = 0
+    private var capH = 0
 
     private val heartbeat = object : Runnable {
         override fun run() {
@@ -76,6 +78,19 @@ class ScreenService : Service() {
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
+
+    // لما الموبايل يتلف بالعرض (زي فيديو أو ماتش) نغيّر أبعاد البث عشان الصورة تملا الـ iPad
+    override fun onConfigurationChanged(newConfig: android.content.res.Configuration) {
+        super.onConfigurationChanged(newConfig)
+        main.postDelayed({
+            val cap = capturer ?: return@postDelayed
+            val (w, h) = captureSize()
+            if (w != capW || h != capH) {
+                capW = w; capH = h
+                try { cap.changeCaptureFormat(w, h, 15) } catch (_: Exception) {}
+            }
+        }, 300)
+    }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent?.action == ACTION_STOP) {
@@ -173,6 +188,7 @@ class ScreenService : Service() {
         videoSource = vs
         cap.initialize(h, this, vs.capturerObserver)
         val (w, hh) = captureSize()
+        capW = w; capH = hh
         cap.startCapture(w, hh, 15)
         val videoTrack = f.createVideoTrack("screen0", vs)
 
@@ -216,7 +232,7 @@ class ScreenService : Service() {
         (getSystemService(Context.WINDOW_SERVICE) as WindowManager).defaultDisplay.getRealMetrics(dm)
         var w = dm.widthPixels
         var h = dm.heightPixels
-        val sc = 1280.0 / max(w, h)
+        val sc = 1600.0 / max(w, h)
         if (sc < 1) { w = (w * sc).toInt(); h = (h * sc).toInt() }
         return Pair(w and 1.inv(), h and 1.inv())
     }

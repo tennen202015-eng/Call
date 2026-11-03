@@ -50,6 +50,14 @@ input[type=text]{width:100%;font-size:18px;padding:12px;border-radius:12px;borde
 body:not(.video-call) #remoteVideo{width:1px;height:1px;opacity:0}
 body.screen-call #remoteVideo{object-fit:contain}
 body.screen-call #localVideo{display:none}
+body.screen-call.fill #remoteVideo{object-fit:cover}
+body.screen-call.rot90 #remoteVideo,body.screen-call.rot270 #remoteVideo{top:50%;left:50%;width:100vh;height:100vw}
+body.screen-call.rot90 #remoteVideo{-webkit-transform:translate(-50%,-50%) rotate(90deg);transform:translate(-50%,-50%) rotate(90deg)}
+body.screen-call.rot270 #remoteVideo{-webkit-transform:translate(-50%,-50%) rotate(-90deg);transform:translate(-50%,-50%) rotate(-90deg)}
+body.screen-call.rot180 #remoteVideo{-webkit-transform:rotate(180deg);transform:rotate(180deg)}
+.scrBtn{display:none}
+body.screen-call .scrBtn{display:inline-block}
+body.screen-call #controls{opacity:.55}
 body:not(.video-call) #localVideo{display:none}
 #audioView{position:fixed;top:0;left:0;right:0;bottom:0;display:none;-webkit-box-orient:vertical;flex-direction:column;align-items:center;justify-content:center;background:var(--bg);z-index:1}
 body:not(.video-call) #audioView{display:-webkit-box;display:flex}
@@ -206,6 +214,8 @@ body:not(.video-call) #audioView{display:-webkit-box;display:flex}
   <div id="controls">
     <button class="cbtn" id="micBtn" title="المايك">🎙️</button>
     <button class="cbtn" id="camBtn" title="الكاميرا">📷</button>
+    <button class="cbtn scrBtn" id="rotBtn" title="تدوير الصورة">🔄</button>
+    <button class="cbtn scrBtn" id="fillBtn" title="ملء الشاشة">⛶</button>
     <button class="cbtn end" id="hangBtn" title="إنهاء">✖</button>
   </div>
 </section>
@@ -577,12 +587,23 @@ body:not(.video-call) #audioView{display:-webkit-box;display:flex}
       });
     }, 0);
   }
+  // عرض الشاشة: تدوير الصورة وملء الشاشة (الاختيار بيتحفظ للمرة الجاية)
+  var scrRot = lsGet('bayt-scr-rot', 0), scrFill = lsGet('bayt-scr-fill', false);
+  function applyScrView() {
+    var b = document.body.classList, on = callType === 'screen' && inCall;
+    b.remove('rot90'); b.remove('rot180'); b.remove('rot270'); b.remove('fill');
+    if (!on) return;
+    if (scrRot) b.add('rot' + scrRot);
+    if (scrFill) b.add('fill');
+    $('fillBtn').className = scrFill ? 'cbtn scrBtn off' : 'cbtn scrBtn';
+  }
   function enterCallUI(status) {
     micOn = true; camOn = true;
     $('micBtn').className = 'cbtn'; $('camBtn').className = 'cbtn';
     $('camBtn').style.display = callType === 'video' ? 'inline-block' : 'none';
     document.body.classList.toggle('video-call', callType !== 'audio');
     document.body.classList.toggle('screen-call', callType === 'screen');
+    setTimeout(applyScrView, 0);
     $('audioName').textContent = nameOf(callWith);
     $('callStatus').textContent = status; $('callTime').textContent = '';
     $('tapAudio').style.display = 'none';
@@ -608,7 +629,7 @@ body:not(.video-call) #audioView{display:-webkit-box;display:flex}
     var d = dataConn; dataConn = null; if (d) setTimeout(function () { try { d.close(); } catch (e) {} }, 500);
     if (localStream) { localStream.getTracks().forEach(function (t) { t.stop(); }); localStream = null; }
     $('remoteVideo').srcObject = null; $('localVideo').srcObject = null;
-    document.body.classList.remove('video-call'); document.body.classList.remove('screen-call');
+    document.body.classList.remove('video-call'); document.body.classList.remove('screen-call'); applyScrView();
     backHome(); if (msg) toast(msg);
   }
   function hangUp() { send({t: connected ? 'hangup' : 'cancel'}); endCall(connected ? 'انتهت المكالمة' : 'تم الإلغاء'); }
@@ -1179,6 +1200,8 @@ body:not(.video-call) #audioView{display:-webkit-box;display:flex}
   $('hangBtn').onclick = hangUp;
   $('micBtn').onclick = toggleMic;
   $('camBtn').onclick = toggleCam;
+  $('rotBtn').onclick = function () { scrRot = (scrRot + 90) % 360; lsSet('bayt-scr-rot', scrRot); applyScrView(); };
+  $('fillBtn').onclick = function () { scrFill = !scrFill; lsSet('bayt-scr-fill', scrFill); applyScrView(); toast(scrFill ? 'ملء الشاشة (ممكن يقص الأطراف)' : 'عرض الصورة كاملة'); };
   $('chatBack').onclick = function () { currentChat = ''; show('idle'); updateUnread(); };
   $('chatAudio').onclick = function () { makeCall('audio', currentChat); };
   $('chatVideo').onclick = function () { makeCall('video', currentChat); };
