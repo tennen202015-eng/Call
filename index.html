@@ -263,8 +263,10 @@ body:not(.video-call) #audioView{display:-webkit-box;display:flex}
   function peerIdFor(id) { return id === 'home' ? base() + '-home' : (id === 'main' ? base() + '-phone' : base() + '-m-' + id); }
   function inboxFor(id) { return id === 'home' ? base() + '-home' : (id === 'main' ? base() : base() + '-m-' + id); }
   function ctlFor(id) { return inboxFor(id) + '-c'; }
+  var tmpNames = {};          // أسماء أجهزة عرض الشاشة (تطبيق الأندرويد)
   function nameOf(id) {
     if (id === 'home') return 'البيت';
+    if (tmpNames[id]) return tmpNames[id];
     var m = members[id];
     if (m && m.name) return m.name;
     return id === 'main' ? 'الموبايل' : 'فرد من العيلة';
@@ -447,7 +449,9 @@ body:not(.video-call) #audioView{display:-webkit-box;display:flex}
     var prob = supportProblem(); if (prob) { toast(prob); return; }
     if (!peerOpen) { toast('لسه بيتصل بالخادم، جرّب بعد ثواني'); return; }
     if (inCall || pendingCall) return;
-    if (type === 'screen' && !canShareScreen()) { toast('متصفح الموبايل ده لا يسمح بعرض الشاشة من الموقع. هتحتاج تطبيق أندرويد خاص بعرض الشاشة.'); return; }
+    if (type === 'screen' && !canShareScreen()) { sheet('متصفح الموبايل لا يسمح بعرض الشاشة من الموقع. استخدم تطبيق «عرض الشاشة» للأندرويد (بنفس رمز العيلة).', [
+      {label: '⬇ تنزيل تطبيق عرض الشاشة', cls: 'green', fn: function () { location.href = 'https://github.com/tennen202015-eng/Call/releases/download/screen-app-latest/BaytScreen.apk'; }}
+    ]); return; }
     rememberScreen();
     callType = type; callWith = withId; isCaller = true; inCall = true; connected = false; notified = false;
     enterCallUI('جارٍ الاتصال بـ ' + nameOf(withId) + '...');
@@ -507,7 +511,8 @@ body:not(.video-call) #audioView{display:-webkit-box;display:flex}
     rememberScreen();
     pendingCall = call;
     callWith = md.from || (isHome() ? 'main' : 'home');
-    if (md.name) registerMember(callWith, md.name); else registerMember(callWith, '');
+    if (md.type === 'screen' && md.from === 'scr') tmpNames.scr = md.name || 'موبايل';
+    else if (md.name) registerMember(callWith, md.name); else registerMember(callWith, '');
     callType = (md.type === 'video' || md.type === 'screen') ? md.type : 'audio';
     $('inIco').textContent = callType === 'screen' ? '📺' : (callType === 'video' ? '🎥' : '📞');
     $('inTitle').textContent = callType === 'screen' ? 'عرض شاشة وارد' : (callType === 'video' ? 'مكالمة فيديو واردة' : 'مكالمة صوتية واردة');
@@ -563,7 +568,11 @@ body:not(.video-call) #audioView{display:-webkit-box;display:flex}
         if (mediaCall !== call) return;
         var s = pc.iceConnectionState;
         if (s === 'failed') { send({t: 'hangup'}); endCall('تعذّر الربط بين الجهازين. غالبًا تحتاج إضافة خادم TURN.'); }
-        else if (s === 'disconnected') $('callStatus').textContent = 'الاتصال ضعيف...';
+        else if (s === 'disconnected') {
+          $('callStatus').textContent = 'الاتصال ضعيف...';
+          if (callType === 'screen') setTimeout(function () { if (mediaCall === call && pc.iceConnectionState === 'disconnected') endCall('انتهى عرض الشاشة'); }, 5000);
+        }
+        else if (s === 'closed' && callType === 'screen') endCall('انتهى عرض الشاشة');
         else if ((s === 'connected' || s === 'completed') && connected) $('callStatus').textContent = nameOf(callWith);
       });
     }, 0);
